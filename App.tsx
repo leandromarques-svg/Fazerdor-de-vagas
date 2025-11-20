@@ -1,369 +1,325 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { toPng } from 'html-to-image';
-import { Download, Upload, Layout, MapPin, Briefcase, Image as ImageIcon, X, ChevronDown, Search } from 'lucide-react';
+
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchJobs } from './services/selectyService';
+import { SelectyJobResponse, JobFilterState } from './types';
 import { JobCard } from './components/JobCard';
-import { JobData, INITIAL_JOB_DATA } from './types';
+import { JobModal } from './components/JobModal';
+import { JobImageGenerator } from './components/JobImageGenerator';
+import { Filters } from './components/Filters';
+import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus } from 'lucide-react';
 
-// Scale factor for the sidebar preview to fit comfortably on standard screens
-const PREVIEW_SCALE = 0.45;
-
-// Common Brazilian Cities for Autocomplete
-const MAJOR_CITIES = [
-  "São Paulo - SP", "Rio de Janeiro - RJ", "Belo Horizonte - MG", "Brasília - DF",
-  "Curitiba - PR", "Porto Alegre - RS", "Salvador - BA", "Recife - PE", "Fortaleza - CE",
-  "Manaus - AM", "Goiânia - GO", "Campinas - SP", "São José dos Campos - SP", 
-  "Vitória - ES", "Florianópolis - SC", "Belém - PA", "São Luís - MA", "Maceió - AL",
-  "Natal - RN", "João Pessoa - PB", "Aracaju - SE", "Cuiabá - MT", "Campo Grande - MS",
-  "Palmas - TO", "Porto Velho - RO", "Rio Branco - AC", "Macapá - AP", "Boa Vista - RR",
-  "Valinhos - SP", "Vinhedo - SP", "Jundiaí - SP", "Sorocaba - SP", "Ribeirão Preto - SP",
-  "Uberlândia - MG", "Joinville - SC", "Londrina - PR", "Niterói - RJ", "Santos - SP"
-].sort();
-
-const CONTRACT_TYPES = [
-    "CLT (Efetivo)",
-    "PJ",
-    "Estágio",
-    "Temporário",
-    "Terceirizado",
-    "Trainee",
-    "Jovem Aprendiz"
-];
-
-const MODALITIES = [
-    "Presencial",
-    "Híbrido",
-    "Remoto"
-];
+const ITEMS_PER_PAGE = 9;
 
 export default function App() {
-  const [jobData, setJobData] = useState<JobData>(INITIAL_JOB_DATA);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [jobs, setJobs] = useState<SelectyJobResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<SelectyJobResponse | null>(null);
+  const [jobForGenerator, setJobForGenerator] = useState<SelectyJobResponse | null>(null);
   
-  const cardRef = useRef<HTMLDivElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  // Filter State
+  const [filters, setFilters] = useState<JobFilterState>({
+    keyword: '',
+    location: '',
+    jobCode: '',
+    specificDate: '' // Changed from dateRange to specificDate
+  });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setJobData(prev => ({ ...prev, [name]: value }));
-  };
+  // Visible Count State (Load More logic)
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: keyof JobData) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setJobData(prev => ({ ...prev, [field]: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // --- Iframe Resizer Logic ---
+  useEffect(() => {
+    let lastHeight = 0;
+    let resizeTimer: ReturnType<typeof setTimeout>;
 
-  const handleDownload = useCallback(async () => {
-    if (cardRef.current === null) return;
+    const sendHeight = () => {
+      const root = document.getElementById('root');
+      if (!root) return;
 
-    setIsDownloading(true);
-    try {
-      // Export at exact 1080x1350 resolution
-      // O JobCard agora lida com o pre-fetching de imagens via proxy,
-      // então aqui podemos apenas gerar o PNG.
-      const dataUrl = await toPng(cardRef.current, { 
-          quality: 1.0,
-          width: 1080,
-          height: 1350,
-          pixelRatio: 1,
-          cacheBust: true, 
-          style: {
-             transform: 'scale(1)',
-             transformOrigin: 'top left',
-          }
-      });
+      // Use scrollHeight of the root container to get accurate content height
+      const height = root.scrollHeight;
       
-      const link = document.createElement('a');
-      link.download = `METARH-vaga-${jobData.jobCode}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Falha ao gerar imagem', err);
-      alert('Erro ao baixar a imagem. Tente novamente.');
-    } finally {
-      setIsDownloading(false);
-    }
-  }, [jobData.jobCode]);
+      // Check threshold to prevent infinite loops (1px jitter)
+      // Only update if height changed by more than 2 pixels
+      if (Math.abs(height - lastHeight) > 2) {
+        lastHeight = height;
+        window.parent.postMessage({ type: 'setHeight', height: height }, '*');
+      }
+    };
 
-  // Shared class for all inputs and selects to ensure harmony
-  const inputClass = "w-full px-5 h-[54px] bg-gray-50 border border-gray-200 rounded-[2rem] focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none text-sm font-medium text-gray-700 transition-all placeholder-gray-400 flex items-center";
-  // Select specific extra classes (for arrow positioning)
-  const selectClass = `${inputClass} appearance-none pr-10 cursor-pointer`;
+    const debouncedSendHeight = () => {
+      clearTimeout(resizeTimer);
+      // Debounce to prevent rapid firing during layout reflows
+      resizeTimer = setTimeout(sendHeight, 50);
+    };
+
+    // 1. Initial send
+    debouncedSendHeight();
+
+    // 2. Observer attached to root element instead of body to avoid iframe window resize loops
+    const resizeObserver = new ResizeObserver(debouncedSendHeight);
+    const root = document.getElementById('root');
+    if (root) {
+      resizeObserver.observe(root);
+    }
+    
+    // 3. Window resize/load events
+    window.addEventListener('resize', debouncedSendHeight);
+    window.addEventListener('load', debouncedSendHeight);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', debouncedSendHeight);
+      window.removeEventListener('load', debouncedSendHeight);
+      clearTimeout(resizeTimer);
+    };
+  }, [visibleCount, jobs, loading, filters, selectedJob, jobForGenerator]); // Re-run if major state changes affecting layout occur
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchJobs();
+      setJobs(data || []);
+    } catch (err: any) {
+      console.error("Error loading jobs", err);
+      setError(err.message || "Erro desconhecido ao conectar com Selecty");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Reset visible count to initial when filters change
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [filters]);
+
+  // Handler para abrir detalhes da vaga
+  const handleShowDetails = (job: SelectyJobResponse) => {
+    setJobForGenerator(null); // Close generator if open
+    setSelectedJob(job);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+        window.parent.postMessage({ type: 'scrollToTop' }, '*');
+    } catch (e) { /* ignore */ }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedJob(null);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  // Handler para abrir gerador de imagem
+  const handleOpenGenerator = (job: SelectyJobResponse) => {
+    setSelectedJob(null); // Close details if open
+    setJobForGenerator(job);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+        window.parent.postMessage({ type: 'scrollToTop' }, '*');
+    } catch (e) { /* ignore */ }
+  };
+
+  const handleCloseGenerator = () => {
+    setJobForGenerator(null);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  // Derive unique filter options
+  const locations = useMemo(() => {
+    const locs = new Set<string>();
+    jobs.forEach(job => {
+      if(job.remote) locs.add("Trabalho Remoto");
+      else if(job.city) locs.add(job.state ? `${job.city} - ${job.state}` : job.city || "Local não informado");
+    });
+    return Array.from(locs).sort();
+  }, [jobs]);
+
+  // Filter logic
+  const filteredJobs = useMemo(() => {
+    return jobs.filter(job => {
+      const searchMatch = filters.keyword === '' || 
+        job.title.toLowerCase().includes(filters.keyword.toLowerCase());
+        
+      const locMatch = filters.location === '' || 
+        (filters.location === "Trabalho Remoto" ? job.remote : 
+         (job.city && filters.location.includes(job.city)));
+
+      const codeMatch = filters.jobCode === '' || 
+        String(job.id).toLowerCase().includes(filters.jobCode.toLowerCase());
+
+      // Specific Date filtering logic
+      let dateMatch = true;
+      if (filters.specificDate && job.published_at) {
+        // Normalize job date to YYYY-MM-DD
+        const jobDate = new Date(job.published_at);
+        const jobDateString = jobDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        // filters.specificDate matches YYYY-MM-DD from input type="date"
+        if (jobDateString !== filters.specificDate) {
+            dateMatch = false;
+        }
+      }
+
+      return searchMatch && locMatch && codeMatch && dateMatch;
+    });
+  }, [jobs, filters]);
+
+  // Slicing logic for "Load More"
+  const visibleJobs = useMemo(() => {
+    return filteredJobs.slice(0, visibleCount);
+  }, [filteredJobs, visibleCount]);
+
+  const hasMore = visibleCount < filteredJobs.length;
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  // Render View Logic
+  const renderContent = () => {
+    if (jobForGenerator) {
+        return (
+            <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <JobImageGenerator 
+                    job={jobForGenerator} 
+                    onClose={handleCloseGenerator} 
+                />
+            </div>
+        );
+    }
+
+    if (selectedJob) {
+        return (
+            <div className="max-w-4xl mx-auto w-full px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+               <JobModal 
+                  job={selectedJob} 
+                  onClose={handleCloseDetails} 
+                />
+            </div>
+        );
+    }
+
+    return (
+        <>
+          {/* Header Image Banner */}
+          <div className="w-full bg-white">
+             <img 
+               src="https://metarh.com.br/wp-content/uploads/2025/11/banner_app.png" 
+               alt="MetaRH Banner" 
+               className="w-full h-auto block"
+               style={{ minWidth: '320px' }}
+             />
+          </div>
+
+          {/* Header / Filtros */}
+          <div className="w-full z-20 bg-white border-b border-slate-200 shadow-sm sticky top-0">
+            <div className="max-w-7xl mx-auto px-4 pt-4 pb-4">
+                <Filters 
+                filters={filters}
+                setFilters={setFilters}
+                locations={locations}
+                />
+            </div>
+          </div>
+
+          {/* Área de Conteúdo */}
+          <main id="jobs-container" className="px-4 py-8 w-full">
+              <div className="max-w-7xl mx-auto">
+                
+                <div className="flex items-baseline justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">
+                        Vagas Publicadas
+                        <span className="ml-3 text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full lowercase normal-case">
+                            {filteredJobs.length} encontradas
+                        </span>
+                    </h2>
+                </div>
+
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-3xl border border-slate-100">
+                        <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-4" />
+                        <p className="text-slate-600 font-semibold">Carregando oportunidades...</p>
+                    </div>
+                ) : error ? (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center max-w-2xl mx-auto my-10">
+                        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-4">
+                        <CircleAlert className="h-7 w-7 text-red-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-red-900 mb-2">Não foi possível carregar as vagas</h3>
+                        <p className="text-red-700 mb-6 text-sm max-w-md mx-auto">
+                        Houve um problema ao conectar com a plataforma de vagas.
+                        </p>
+                        <button 
+                        onClick={loadData}
+                        className="inline-flex items-center justify-center bg-white text-red-700 border border-red-200 hover:bg-red-50 font-bold py-3 px-8 rounded-full transition-colors shadow-sm"
+                        >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Tentar Novamente
+                        </button>
+                    </div>
+                ) : filteredJobs.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                            {visibleJobs.map(job => (
+                            <JobCard 
+                                key={job.id} 
+                                job={job} 
+                                onShowDetails={handleShowDetails}
+                                onGenerateImage={handleOpenGenerator}
+                            />
+                            ))}
+                        </div>
+                        
+                        {hasMore && (
+                            <div className="flex justify-center pb-10">
+                                <button 
+                                    onClick={handleLoadMore}
+                                    className="group flex items-center px-8 py-4 bg-white border border-brand-200 text-brand-700 font-bold rounded-full shadow-sm hover:shadow-md hover:border-brand-400 hover:bg-brand-50 transition-all duration-300"
+                                >
+                                    <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                                    Carregar mais vagas
+                                </button>
+                            </div>
+                        )}
+
+                        {!hasMore && filteredJobs.length > ITEMS_PER_PAGE && (
+                            <div className="text-center pb-10 text-slate-400 text-sm font-medium">
+                                Você visualizou todas as vagas disponíveis.
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-3xl border border-slate-100 border-dashed">
+                        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-sm mb-5">
+                            <Briefcase className="h-7 w-7 text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900">Nenhuma vaga encontrada</h3>
+                        <p className="mt-2 text-slate-500 max-w-sm mx-auto text-center">
+                        Tente ajustar os filtros de busca acima.
+                        </p>
+                        <button 
+                        onClick={() => setFilters({ keyword: '', location: '', jobCode: '', specificDate: '' })}
+                        className="mt-6 inline-flex items-center px-6 py-3 border border-transparent text-sm font-bold rounded-full text-white bg-brand-600 hover:bg-brand-700 transition-colors shadow-md"
+                        >
+                        Limpar filtros
+                        </button>
+                    </div>
+                )}
+              </div>
+          </main>
+        </>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col lg:flex-row font-sans">
-      
-      {/* Sidebar - Controls */}
-      <div className="w-full lg:w-[420px] bg-white shadow-xl flex flex-col h-screen border-r border-gray-200 z-20 relative">
-        
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-gray-100 bg-white sticky top-0 z-10">
-          <h1 className="font-condensed font-bold text-3xl text-brand-purple flex items-center gap-2">
-            <Layout className="w-7 h-7 text-brand-pink" />
-            Criador de Vagas
-          </h1>
-          <p className="text-gray-400 text-xs mt-1 font-medium uppercase tracking-wider">Template Padrão METARH</p>
-        </div>
-
-        {/* Scrollable Form */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-          
-          {/* 2. Conteúdo Principal */}
-          <section>
-             <h3 className="flex items-center gap-2 text-brand-purple font-condensed font-bold text-xl uppercase mb-5 border-b border-gray-100 pb-2">
-                <Briefcase className="w-5 h-5" /> Conteúdo da Vaga
-            </h3>
-            
-            <div className="space-y-5">
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-3">Título do Cargo</label>
-                    <input
-                        type="text"
-                        name="jobTitle"
-                        value={jobData.jobTitle}
-                        onChange={handleInputChange}
-                        className={inputClass}
-                        placeholder="Ex: Analista Financeiro"
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-3">Código</label>
-                        <input
-                            type="text"
-                            name="jobCode"
-                            value={jobData.jobCode}
-                            onChange={handleInputChange}
-                            className={inputClass}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-3">Setor</label>
-                        <input
-                            type="text"
-                            name="sector"
-                            value={jobData.sector}
-                            onChange={handleInputChange}
-                            className={inputClass}
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 px-3">Frase de Efeito (Tagline)</label>
-                    
-                    {/* Selector Switch */}
-                    <div className="flex p-1 bg-gray-100 rounded-full mb-3">
-                        <button
-                            type="button"
-                            onClick={() => setJobData(prev => ({ ...prev, tagline: 'TRABALHE EM UMA EMPRESA NACIONAL' }))}
-                            className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-full transition-all ${
-                                jobData.tagline === 'TRABALHE EM UMA EMPRESA NACIONAL'
-                                ? 'bg-white text-brand-purple shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Nacional
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setJobData(prev => ({ ...prev, tagline: 'TRABALHE EM UMA EMPRESA MULTINACIONAL' }))}
-                            className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-full transition-all ${
-                                jobData.tagline === 'TRABALHE EM UMA EMPRESA MULTINACIONAL'
-                                ? 'bg-white text-brand-purple shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Multinacional
-                        </button>
-                    </div>
-
-                    <input
-                        type="text"
-                        name="tagline"
-                        value={jobData.tagline}
-                        onChange={handleInputChange}
-                        className={inputClass}
-                        placeholder="Ex: FAÇA PARTE DO NOSSO TIME"
-                    />
-                </div>
-            </div>
-          </section>
-
-          {/* 3. Detalhes & Local */}
-          <section>
-            <h3 className="flex items-center gap-2 text-brand-purple font-condensed font-bold text-xl uppercase mb-5 border-b border-gray-100 pb-2">
-                <MapPin className="w-5 h-5" /> Detalhes Contratuais
-            </h3>
-            
-            {/* Grid for Contract and Modality (Dropdowns) */}
-            <div className="grid grid-cols-2 gap-4 mb-5">
-                 <div className="relative">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 px-3">Contrato</label>
-                    <div className="relative group">
-                        <select
-                            name="contractType"
-                            value={jobData.contractType}
-                            onChange={handleInputChange}
-                            className={selectClass}
-                        >
-                            {CONTRACT_TYPES.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-brand-purple transition-colors" />
-                    </div>
-                </div>
-                 <div className="relative">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 px-3">Modalidade</label>
-                    <div className="relative group">
-                        <select
-                            name="modality"
-                            value={jobData.modality}
-                            onChange={handleInputChange}
-                            className={selectClass}
-                        >
-                            {MODALITIES.map(mod => (
-                                <option key={mod} value={mod}>{mod}</option>
-                            ))}
-                        </select>
-                         <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-brand-purple transition-colors" />
-                    </div>
-                </div>
-            </div>
-
-            {/* Full width City with Datalist */}
-            <div className="mb-5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 px-3">Cidade / UF</label>
-                <div className="relative group">
-                    <input
-                        list="cities-list"
-                        type="text"
-                        name="location"
-                        value={jobData.location}
-                        onChange={handleInputChange}
-                        className={inputClass}
-                        placeholder="Busque a cidade ou digite..."
-                    />
-                    <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-purple transition-colors" />
-                    
-                    <datalist id="cities-list">
-                        {MAJOR_CITIES.map(city => (
-                            <option key={city} value={city} />
-                        ))}
-                    </datalist>
-                </div>
-            </div>
-            
-            <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-3">Link do Site</label>
-                <input
-                    type="text"
-                    name="websiteUrl"
-                    value={jobData.websiteUrl}
-                    onChange={handleInputChange}
-                    className={inputClass}
-                />
-            </div>
-          </section>
-
-           {/* 4. Imagem de Fundo */}
-          <section>
-            <h3 className="flex items-center gap-2 text-brand-purple font-condensed font-bold text-xl uppercase mb-5 border-b border-gray-100 pb-2">
-                <ImageIcon className="w-5 h-5" /> Imagem de Destaque
-            </h3>
-            <div 
-                className="border-2 border-dashed border-gray-300 rounded-[2rem] p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-purple-50 hover:border-brand-purple transition group bg-white"
-                onClick={() => imageInputRef.current?.click()}
-            >
-                <Upload className="w-8 h-8 text-gray-300 mb-2 group-hover:text-brand-purple transition-colors" />
-                <span className="text-sm font-medium text-gray-600 group-hover:text-brand-purple">Clique para trocar a foto</span>
-                <input 
-                    ref={imageInputRef}
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden"
-                    onChange={(e) => handleFileUpload(e, 'imageUrl')}
-                />
-            </div>
-          </section>
-
-        </div>
-
-        {/* Sidebar Footer */}
-        <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] space-y-4">
-             <div className="flex gap-3">
-                <button
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                    className="w-full bg-brand-purple text-white font-condensed font-bold uppercase text-lg py-4 rounded-[2rem] shadow-lg hover:bg-brand-lightPurple hover:shadow-brand-purple/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                >
-                    {isDownloading ? (
-                        <span className="animate-pulse">Processando...</span>
-                    ) : (
-                        <>
-                            <Download className="w-5 h-5" />
-                            Baixar Arte
-                        </>
-                    )}
-                </button>
-             </div>
-
-             <div className="flex flex-col items-center justify-center pt-2 opacity-80">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Desenvolvido por</span>
-                <img 
-                    src="https://metarh.com.br/wp-content/uploads/2025/11/logo-metarh-azul.png" 
-                    alt="METARH" 
-                    className="h-6 w-auto"
-                />
-             </div>
-        </div>
-      </div>
-
-      {/* Main Live Preview Area (Desktop) */}
-      <div className="hidden lg:flex flex-1 bg-neutral-900 overflow-auto items-center justify-center p-8">
-        <div 
-            className="relative shadow-2xl bg-white shrink-0" 
-            style={{ 
-                width: `${1080 * PREVIEW_SCALE}px`, 
-                height: `${1350 * PREVIEW_SCALE}px` 
-            }}
-        >
-            <JobCard ref={cardRef} data={jobData} scale={PREVIEW_SCALE} />
-        </div>
-      </div>
-
-      {/* Full Screen Modal Preview */}
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-            <button 
-                onClick={() => setIsPreviewOpen(false)}
-                className="absolute top-4 right-4 bg-white/10 text-white p-3 rounded-full hover:bg-white/20 transition"
-            >
-                <X className="w-6 h-6" />
-            </button>
-            
-            <div className="relative overflow-auto max-h-full custom-scrollbar rounded-[2rem]">
-                {/* Render a static copy for view only, scaling based on window height roughly */}
-                <div style={{ 
-                    transform: 'scale(0.6)', 
-                    transformOrigin: 'center',
-                    width: '1080px',
-                    height: '1350px'
-                }}>
-                    <JobCard data={jobData} scale={1} />
-                </div>
-            </div>
-        </div>
-      )}
-
+    <div className="bg-transparent font-sans w-full flex flex-col text-slate-900 min-h-[100px]">
+      {renderContent()}
     </div>
   );
 }
