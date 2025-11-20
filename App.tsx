@@ -1,9 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { toPng } from 'html-to-image';
-import { Download, Upload, Layout, MapPin, Briefcase, Image as ImageIcon, Palette, Loader2, Database, RefreshCw, Eye, X, ChevronDown, Search } from 'lucide-react';
+import { Download, Upload, Layout, MapPin, Briefcase, Image as ImageIcon, X, ChevronDown, Search } from 'lucide-react';
 import { JobCard } from './components/JobCard';
 import { JobData, INITIAL_JOB_DATA } from './types';
-import { fetchVacancyFromSelecty, fetchActiveVacancies, VacancySummary } from './services/selectyService';
 
 // Scale factor for the sidebar preview to fit comfortably on standard screens
 const PREVIEW_SCALE = 0.45;
@@ -41,26 +40,8 @@ export default function App() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
-  // ATS Import States
-  const [atsId, setAtsId] = useState('');
-  const [isAtsImporting, setIsAtsImporting] = useState(false);
-  const [vacanciesList, setVacanciesList] = useState<VacancySummary[]>([]);
-  const [isLoadingList, setIsLoadingList] = useState(false);
-  
   const cardRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-
-  // Load vacancies on mount
-  useEffect(() => {
-    loadVacancies();
-  }, []);
-
-  const loadVacancies = async () => {
-    setIsLoadingList(true);
-    const list = await fetchActiveVacancies();
-    setVacanciesList(list);
-    setIsLoadingList(false);
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -78,35 +59,20 @@ export default function App() {
     }
   };
 
-  const handleAtsImport = async () => {
-    if (!atsId) return;
-
-    setIsAtsImporting(true);
-    try {
-      const extractedData = await fetchVacancyFromSelecty(atsId);
-      setJobData(prev => ({
-        ...prev,
-        ...extractedData
-      }));
-    } catch (error) {
-      console.error(error);
-      alert('Não foi possível carregar os dados desta vaga. Verifique a conexão ou o ID.');
-    } finally {
-      setIsAtsImporting(false);
-    }
-  };
-
   const handleDownload = useCallback(async () => {
     if (cardRef.current === null) return;
 
     setIsDownloading(true);
     try {
       // Export at exact 1080x1350 resolution
+      // O JobCard agora lida com o pre-fetching de imagens via proxy,
+      // então aqui podemos apenas gerar o PNG.
       const dataUrl = await toPng(cardRef.current, { 
           quality: 1.0,
           width: 1080,
           height: 1350,
           pixelRatio: 1,
+          cacheBust: true, 
           style: {
              transform: 'scale(1)',
              transformOrigin: 'top left',
@@ -124,6 +90,11 @@ export default function App() {
       setIsDownloading(false);
     }
   }, [jobData.jobCode]);
+
+  // Shared class for all inputs and selects to ensure harmony
+  const inputClass = "w-full px-5 h-[54px] bg-gray-50 border border-gray-200 rounded-[2rem] focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none text-sm font-medium text-gray-700 transition-all placeholder-gray-400 flex items-center";
+  // Select specific extra classes (for arrow positioning)
+  const selectClass = `${inputClass} appearance-none pr-10 cursor-pointer`;
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col lg:flex-row font-sans">
@@ -143,61 +114,6 @@ export default function App() {
         {/* Scrollable Form */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
           
-          {/* 0. Importação (Selecty) */}
-          <section className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-[2rem] border border-purple-100 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-brand-purple font-condensed font-bold text-lg uppercase">
-                    <Database className="w-4 h-4" /> Importar do Selecty
-                </h3>
-                <button 
-                    onClick={loadVacancies} 
-                    className="text-brand-purple hover:bg-purple-100 p-2 rounded-full transition"
-                    title="Atualizar lista"
-                >
-                    <RefreshCw className={`w-4 h-4 ${isLoadingList ? 'animate-spin' : ''}`} />
-                </button>
-            </div>
-            
-            {/* Selecty Dropdown Custom */}
-            <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase px-3">Vagas Disponíveis</label>
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <select 
-                            value={atsId}
-                            onChange={(e) => setAtsId(e.target.value)}
-                            className="w-full pl-5 pr-10 py-3.5 text-sm bg-white border border-purple-100 rounded-[2rem] focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none appearance-none cursor-pointer shadow-sm text-gray-700 font-medium truncate"
-                            disabled={isLoadingList}
-                        >
-                            <option value="">
-                                {isLoadingList ? "Carregando..." : "Selecione uma vaga..."}
-                            </option>
-                            {vacanciesList.map((vaga) => (
-                                <option key={vaga.id} value={vaga.id}>
-                                    #{vaga.id} - {vaga.title}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                             <ChevronDown className="w-4 h-4 text-brand-purple" />
-                        </div>
-                    </div>
-                    <button 
-                        onClick={handleAtsImport}
-                        disabled={isAtsImporting || !atsId}
-                        className="bg-brand-purple text-white w-12 h-12 rounded-full hover:bg-brand-lightPurple disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex items-center justify-center flex-shrink-0"
-                        title="Preencher dados"
-                    >
-                        {isAtsImporting ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <Download className="w-5 h-5" />
-                        )}
-                    </button>
-                </div>
-            </div>
-          </section>
-
           {/* 2. Conteúdo Principal */}
           <section>
              <h3 className="flex items-center gap-2 text-brand-purple font-condensed font-bold text-xl uppercase mb-5 border-b border-gray-100 pb-2">
@@ -212,7 +128,7 @@ export default function App() {
                         name="jobTitle"
                         value={jobData.jobTitle}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-[2rem] focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none font-bold text-gray-800 placeholder-gray-300 transition-all"
+                        className={inputClass}
                         placeholder="Ex: Analista Financeiro"
                     />
                 </div>
@@ -225,7 +141,7 @@ export default function App() {
                             name="jobCode"
                             value={jobData.jobCode}
                             onChange={handleInputChange}
-                            className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none transition text-sm font-medium"
+                            className={inputClass}
                         />
                     </div>
                     <div>
@@ -235,7 +151,7 @@ export default function App() {
                             name="sector"
                             value={jobData.sector}
                             onChange={handleInputChange}
-                            className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none transition text-sm font-medium"
+                            className={inputClass}
                         />
                     </div>
                 </div>
@@ -274,7 +190,7 @@ export default function App() {
                         name="tagline"
                         value={jobData.tagline}
                         onChange={handleInputChange}
-                        className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none transition text-sm"
+                        className={inputClass}
                         placeholder="Ex: FAÇA PARTE DO NOSSO TIME"
                     />
                 </div>
@@ -291,34 +207,34 @@ export default function App() {
             <div className="grid grid-cols-2 gap-4 mb-5">
                  <div className="relative">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 px-3">Contrato</label>
-                    <div className="relative">
+                    <div className="relative group">
                         <select
                             name="contractType"
                             value={jobData.contractType}
                             onChange={handleInputChange}
-                            className="w-full pl-5 pr-10 py-3 text-sm bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none appearance-none cursor-pointer"
+                            className={selectClass}
                         >
                             {CONTRACT_TYPES.map(type => (
                                 <option key={type} value={type}>{type}</option>
                             ))}
                         </select>
-                        <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-brand-purple transition-colors" />
                     </div>
                 </div>
                  <div className="relative">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 px-3">Modalidade</label>
-                    <div className="relative">
+                    <div className="relative group">
                         <select
                             name="modality"
                             value={jobData.modality}
                             onChange={handleInputChange}
-                            className="w-full pl-5 pr-10 py-3 text-sm bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none appearance-none cursor-pointer"
+                            className={selectClass}
                         >
                             {MODALITIES.map(mod => (
                                 <option key={mod} value={mod}>{mod}</option>
                             ))}
                         </select>
-                         <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                         <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-brand-purple transition-colors" />
                     </div>
                 </div>
             </div>
@@ -333,10 +249,10 @@ export default function App() {
                         name="location"
                         value={jobData.location}
                         onChange={handleInputChange}
-                        className="w-full pl-10 pr-5 py-3 text-sm bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none transition-all group-hover:bg-white"
+                        className={inputClass}
                         placeholder="Busque a cidade ou digite..."
                     />
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-purple transition-colors" />
+                    <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-purple transition-colors" />
                     
                     <datalist id="cities-list">
                         {MAJOR_CITIES.map(city => (
@@ -353,7 +269,7 @@ export default function App() {
                     name="websiteUrl"
                     value={jobData.websiteUrl}
                     onChange={handleInputChange}
-                    className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-[2rem] focus:border-brand-purple outline-none text-sm text-brand-purple font-medium"
+                    className={inputClass}
                 />
             </div>
           </section>
@@ -384,8 +300,6 @@ export default function App() {
         {/* Sidebar Footer */}
         <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] space-y-4">
              <div className="flex gap-3">
-                {/* Visualizar button removed */}
-
                 <button
                     onClick={handleDownload}
                     disabled={isDownloading}

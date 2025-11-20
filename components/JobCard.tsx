@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useEffect, useState } from 'react';
 import { JobData } from '../types';
 import { MousePointer2 } from 'lucide-react';
 
@@ -7,8 +7,62 @@ interface JobCardProps {
   scale?: number;
 }
 
+// Hook customizado para converter URLs externas em Base64
+// Isso é CRUCIAL para o html-to-image funcionar com imagens de domínios externos (WP, Unsplash)
+// sem causar erros de CORS (Tainted Canvas).
+const useBase64Image = (url: string | null) => {
+  const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!url) {
+      setDataSrc(undefined);
+      return;
+    }
+
+    // Se já for base64, usa direto
+    if (url.startsWith('data:')) {
+      setDataSrc(url);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadImage = async () => {
+      try {
+        // Usamos um proxy para garantir que conseguimos pegar o binário da imagem
+        // sem ser bloqueado pelo servidor de origem.
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const blob = await response.blob();
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (isMounted) {
+            setDataSrc(reader.result as string);
+          }
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error("Erro ao converter imagem para base64:", error);
+        // Fallback: Tenta usar a URL original se o proxy falhar (pode funcionar visualmente, mas falhar no download)
+        if (isMounted) setDataSrc(url);
+      }
+    };
+
+    loadImage();
+
+    return () => { isMounted = false; };
+  }, [url]);
+
+  return dataSrc;
+};
+
 // Helper para abreviar cidades longas visualmente
 const getDisplayLocation = (location: string) => {
+    if (!location) return '';
     if (location.length <= 22) return location;
 
     // Tenta abreviar "São" para "S." e "Santo" para "Sto."
@@ -30,6 +84,11 @@ const getDisplayLocation = (location: string) => {
 
 export const JobCard = forwardRef<HTMLDivElement, JobCardProps>(({ data, scale = 1 }, ref) => {
   
+  // Carrega as imagens como Base64
+  const backgroundSrc = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/Fundo_Vagas.jpg");
+  const footerLogoSrc = useBase64Image(data.footerLogoUrl || null);
+  const mainImageSrc = useBase64Image(data.imageUrl);
+
   // Layout Specs:
   // Size: 1080px x 1350px
   // Safe Area Margin: 145px (Top, Bottom) | 135px (Left, Right)
@@ -50,11 +109,13 @@ export const JobCard = forwardRef<HTMLDivElement, JobCardProps>(({ data, scale =
       
       {/* Background Image - Base Layer */}
       <div className="absolute inset-0 w-full h-full z-0">
-        <img 
-            src="https://metarh.com.br/wp-content/uploads/2025/11/Fundo_Vagas.jpg" 
-            alt="Background Pattern" 
-            className="w-full h-full object-cover"
-        />
+        {backgroundSrc && (
+            <img 
+                src={backgroundSrc}
+                alt="Background Pattern" 
+                className="w-full h-full object-cover"
+            />
+        )}
       </div>
 
       {/* Top White Background - Overlay with Rounded Corners for the specific finish */}
@@ -109,9 +170,9 @@ export const JobCard = forwardRef<HTMLDivElement, JobCardProps>(({ data, scale =
 
                 {/* Main Image - Adjusted width, removed white border */}
                 <div className="w-full aspect-[4/5] rounded-[32px] overflow-hidden shadow-2xl bg-gray-200 relative z-10">
-                     {data.imageUrl && (
+                     {mainImageSrc && (
                         <img 
-                            src={data.imageUrl} 
+                            src={mainImageSrc} 
                             alt="Imagem Vaga" 
                             className="w-full h-full object-cover"
                         />
@@ -142,9 +203,13 @@ export const JobCard = forwardRef<HTMLDivElement, JobCardProps>(({ data, scale =
                  
                  {/* Left: Footer Logo */}
                  <div className="flex items-center">
-                     {data.footerLogoUrl ? (
+                     {footerLogoSrc ? (
                          // Increased height from h-14 to h-[60px] (+2px visual approx/tweak)
-                         <img src={data.footerLogoUrl} alt="Logo Branco" className="h-[60px] w-auto object-contain" />
+                         <img 
+                            src={footerLogoSrc} 
+                            alt="Logo Branco" 
+                            className="h-[60px] w-auto object-contain"
+                         />
                      ) : (
                          /* Fallback Icon */
                          <div className="bg-white/20 rounded-full p-3">
