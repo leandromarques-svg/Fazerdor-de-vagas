@@ -1,19 +1,17 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { SelectyJobResponse } from '../types';
 import { toPng } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Upload, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check } from 'lucide-react';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Upload, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, MousePointer2 } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
   onClose: () => void;
-  onSuccess?: () => void; // Adicionado prop de sucesso
+  onSuccess?: () => void;
 }
 
 // Imagens de escritório expandidas (Foco em Pessoas e Portrait/Vertical)
 const STOCK_IMAGES = [
-  // Mulheres Corporativo / Retrato
   "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1598550832205-d416966b840e?auto=format&fit=crop&w=600&q=80",
@@ -31,8 +29,6 @@ const STOCK_IMAGES = [
   "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-  
-  // Homens Corporativo / Retrato
   "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
@@ -47,8 +43,6 @@ const STOCK_IMAGES = [
   "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1480429370139-e0132c086e2a?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=600&q=80",
-  
-  // Equipes / Reuniões / Colaboração
   "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=600&q=80",
@@ -60,8 +54,6 @@ const STOCK_IMAGES = [
   "https://images.unsplash.com/photo-1573164574572-cb8f5647d857?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1559523182-a284c3fb7cff?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80",
-  
-  // Ambiente Criativo / Moderno / Casual
   "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1568992687947-86c22da06ea0?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
@@ -69,8 +61,6 @@ const STOCK_IMAGES = [
   "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1593642632823-8f785e67ac73?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
-  
-  // Conceitual / Close-up
   "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1553877606-3c9cb40559dc?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80",
@@ -82,170 +72,90 @@ const STOCK_IMAGES = [
 const getTags = (job: SelectyJobResponse) => {
     const cityTag = job.city ? `#${job.city.replace(/\s+/g, '').toLowerCase()}` : '';
     const deptTag = job.department ? `#${job.department.replace(/\s+/g, '').toLowerCase()}` : '';
-    // Remove duplicatas e espaços vazios
     return [...new Set(['#vagas', '#emprego', '#METARH', '#carreira', '#oportunidade', cityTag, deptTag])].filter(Boolean).join(' ');
 };
 
-// Templates de Legenda (10 Variações)
+// Templates de Legenda (Genéricos)
 const CAPTION_TEMPLATES = [
-    // 1. Clássica
-    (job: SelectyJobResponse, link: string) => 
-`🚀 OPORTUNIDADE DE CARREIRA
-
-Estamos buscando talentos para atuar como ${job.title}!
-
-📍 Local: ${job.city || 'Brasil'} (${job.remote ? 'Remoto' : 'Presencial'})
-💼 Tipo: ${job.contract_type || 'CLT'}
-🏢 Setor: ${job.department || 'Geral'}
-
-Se você busca desenvolvimento profissional e novos desafios, essa vaga é para você.
-
-🔗 Inscreva-se agora: ${link}
-
-${getTags(job)}`,
-
-    // 2. Entusiasta
-    (job: SelectyJobResponse, link: string) =>
-`🌟 VEM PRO TIME!
-
-Tem vaga nova na área para ${job.title}. Se você é apaixonado pelo que faz e quer crescer em um ambiente dinâmico, queremos te conhecer!
-
-✅ O que oferecemos:
-- Ambiente colaborativo
-- Oportunidade de crescimento
-- Atuação ${job.remote ? '100% Remota' : `em ${job.city}`}
-
-👉 Curtiu? Corre pra se inscrever: ${link}
-
-${getTags(job)}`,
-
-    // 3. Minimalista / Direta
-    (job: SelectyJobResponse, link: string) =>
-`Vaga aberta: ${job.title} 🎯
-
-Estamos contratando profissionais para compor o time de um de nossos parceiros.
-
-📍 ${job.city || 'Local a definir'}
-📝 ${job.contract_type || 'Contrato'}
-
-Link para aplicação nos comentários e abaixo:
-🔗 ${link}
-
-${getTags(job)}`,
-
-    // 4. Focada em Perfil (Pergunta)
-    (job: SelectyJobResponse, link: string) =>
-`Você é um ${job.title} em busca de novos desafios? 🤔
-
-Estamos com uma posição aberta que pode ser o próximo passo na sua carreira! 
-
-Buscamos alguém proativo para atuar em ${job.city || 'nossa sede'}.
-
-Confira os detalhes completos e aplique aqui:
-👉 ${link}
-
-Marque um amigo que manda bem nessa área! 👇
-${getTags(job)}`,
-
-    // 5. Urgente / Ação
-    (job: SelectyJobResponse, link: string) =>
-`🚨 PROCESSO SELETIVO ABERTO
-
-Vaga: ${job.title}
-Regime: ${job.contract_type || 'CLT'}
-Local: ${job.remote ? 'Remoto 🏠' : `${job.city} 🏢`}
-
-Não perca tempo! As inscrições estão abertas e queremos fechar essa vaga com alguém incrível (você?).
-
-Acesse o link e cadastre seu currículo:
-📲 ${link}
-
-${getTags(job)}`,
-
-    // 6. Focada na METARH (Corrigido Maiúsculas)
-    (job: SelectyJobResponse, link: string) =>
-`A METARH conecta você às melhores oportunidades! 🌐
-
-Nova posição disponível para: ${job.title}.
-
-Faça parte de empresas que valorizam o capital humano.
-📍 Atuação: ${job.city || 'Brasil'}
-
-Detalhes e inscrição:
-${link}
-
-${getTags(job)}`,
-
-    // 7. Networking (Você ou Indicação)
-    (job: SelectyJobResponse, link: string) =>
-`Networking é tudo! 🤝
-
-Estamos com vaga aberta para ${job.title}.
-
-Você é essa pessoa ou conhece alguém com esse perfil? Ajude essa oportunidade chegar no talento certo marcando nos comentários.
-
-🔗 Link da vaga: ${link}
-
-${getTags(job)}`,
-
-    // 8. Detalhada (Bullets)
-    (job: SelectyJobResponse, link: string) =>
-`OPORTUNIDADE: ${job.title} 💼
-
-📌 Detalhes da vaga:
-▪️ Setor: ${job.department || 'Geral'}
-▪️ Modelo: ${job.remote ? 'Remoto' : 'Presencial'}
-▪️ Contrato: ${job.contract_type || 'A combinar'}
-▪️ Cidade: ${job.city || 'Não informado'}
-
-Buscamos profissionais engajados e prontos para somar.
-
-Inscreva-se: ${link}
-
-${getTags(job)}`,
-
-    // 9. Vaga no Radar (Melhorada)
-    (job: SelectyJobResponse, link: string) =>
-`VAGA NO RADAR! 🎯
-
-Oportunidade para ${job.title} em ${job.city || 'aberto'}.
-
-Se você busca uma recolocação ou um novo desafio profissional, essa é a hora. Processo seletivo ágil conduzido pela METARH.
-
-Acesse e candidate-se:
-${link}
-
-${getTags(job)}`,
-
-    // 10. Foco no Cliente/Parceiro (Reescrita)
-    (job: SelectyJobResponse, link: string) =>
-`A METARH conecta você a grandes empresas! 🌐
-
-Estamos selecionando ${job.title} para atuar em um de nossos clientes parceiros.
-
-Uma excelente chance de alavancar sua carreira no mercado.
-
-📍 ${job.city || 'Brasil'}
-🔗 Candidate-se: ${link}
-
-${getTags(job)}`
+    (job: SelectyJobResponse, link: string) => `🚀 OPORTUNIDADE DE CARREIRA\n\nEstamos buscando talentos para atuar como ${job.title}!\n\n📍 Local: ${job.city || 'Brasil'} (${job.remote ? 'Remoto' : 'Presencial'})\n💼 Tipo: ${job.contract_type || 'CLT'}\n🏢 Setor: ${job.department || 'Geral'}\n\nSe você busca desenvolvimento profissional e novos desafios, essa vaga é para você.\n\n🔗 Inscreva-se agora: ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `🌟 VEM PRO TIME!\n\nTem vaga nova na área para ${job.title}. Se você é apaixonado pelo que faz e quer crescer em um ambiente dinâmico, queremos te conhecer!\n\n✅ O que oferecemos:\n- Ambiente colaborativo\n- Oportunidade de crescimento\n- Atuação ${job.remote ? '100% Remota' : `em ${job.city}`}\n\n👉 Curtiu? Corre pra se inscrever: ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `Vaga aberta: ${job.title} 🎯\n\nEstamos contratando profissionais para compor o time de um de nossos parceiros.\n\n📍 ${job.city || 'Local a definir'}\n📝 ${job.contract_type || 'Contrato'}\n\nLink para aplicação nos comentários e abaixo:\n🔗 ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `Você é um ${job.title} em busca de novos desafios? 🤔\n\nEstamos com uma posição aberta que pode ser o próximo passo na sua carreira! \n\nBuscamos alguém proativo para atuar em ${job.city || 'nossa sede'}.\n\nConfira os detalhes completos e aplique aqui:\n👉 ${link}\n\nMarque um amigo que manda bem nessa área! 👇\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `🚨 PROCESSO SELETIVO ABERTO\n\nVaga: ${job.title}\nRegime: ${job.contract_type || 'CLT'}\nLocal: ${job.remote ? 'Remoto 🏠' : `${job.city} 🏢`}\n\nNão perca tempo! As inscrições estão abertas e queremos fechar essa vaga com alguém incrível (você?).\n\nAcesse o link e cadastre seu currículo:\n📲 ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `A METARH conecta você às melhores oportunidades! 🌐\n\nNova posição disponível para: ${job.title}.\n\nFaça parte de empresas que valorizam o capital humano.\n📍 Atuação: ${job.city || 'Brasil'}\n\nDetalhes e inscrição:\n${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `Networking é tudo! 🤝\n\nEstamos com vaga aberta para ${job.title}.\n\nVocê é essa pessoa ou conhece alguém com esse perfil? Ajude essa oportunidade chegar no talento certo marcando nos comentários.\n\n🔗 Link da vaga: ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `OPORTUNIDADE: ${job.title} 💼\n\n📌 Detalhes da vaga:\n▪️ Setor: ${job.department || 'Geral'}\n▪️ Modelo: ${job.remote ? 'Remoto' : 'Presencial'}\n▪️ Contrato: ${job.contract_type || 'A combinar'}\n▪️ Cidade: ${job.city || 'Não informado'}\n\nBuscamos profissionais engajados e prontos para somar.\n\nInscreva-se: ${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `VAGA NO RADAR! 🎯\n\nOportunidade para ${job.title} em ${job.city || 'aberto'}.\n\nSe você busca uma recolocação ou um novo desafio profissional, essa é a hora. Processo seletivo ágil conduzido pela METARH.\n\nAcesse e candidate-se:\n${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `A METARH conecta você a grandes empresas! 🌐\n\nEstamos selecionando ${job.title} para atuar em um de nossos clientes parceiros.\n\nUma excelente chance de alavancar sua carreira no mercado.\n\n📍 ${job.city || 'Brasil'}\n🔗 Candidate-se: ${link}\n\n${getTags(job)}`
 ];
+
+// Templates Específicos por Diversidade
+const AFFIRMATIVE_CAPTIONS: Record<string, Array<(job: SelectyJobResponse, link: string) => string>> = {
+    'Mulheres': [
+        (job, link) => `👩‍💼 VAGA AFIRMATIVA PARA MULHERES\n\nBuscamos impulsionar a carreira de mulheres talentosas! Temos uma oportunidade para ${job.title}.\n\nAcreditamos na força e na liderança feminina para transformar o mercado. Se você é mulher e busca crescimento profissional, venha fazer parte!\n\n🔗 Candidate-se aqui: ${link}\n\n#MulheresNaLiderança #VagaAfirmativa #EquidadeDeGênero #MetaRH ${getTags(job)}`,
+        (job, link) => `🚀 LUGAR DE MULHER É ONDE ELA QUISER!\n\nEstamos com vaga afirmativa aberta para ${job.title} exclusivamente para mulheres (cis e trans).\n\nQueremos construir times mais equânimes e plurais. Junte-se a nós nessa jornada.\n\n📍 ${job.city || 'Brasil'}\n💼 ${job.contract_type || 'CLT'}\n\n👉 Inscreva-se: ${link}\n\n#VagaParaMulheres #Diversidade #MetaRH ${getTags(job)}`,
+        (job, link) => `VAGA PARA ELAS! 🌟\n\nOportunidade de ${job.title} - Vaga Afirmativa para Mulheres.\n\nValorizamos o potencial feminino e queremos você no nosso time. Venha somar com sua experiência e visão.\n\n🔗 Link na bio e aqui: ${link}\n\nMarque uma amiga que precisa ver essa vaga! 👇\n\n#CarreiraFeminina #VagaAfirmativa #MetaRH ${getTags(job)}`
+    ],
+    'Pessoas Negras': [
+        (job, link) => `✊🏿 VAGA AFIRMATIVA PARA PESSOAS NEGRAS\n\nA diversidade racial impulsiona a inovação. Estamos com vaga aberta para ${job.title} focada em talentos negros (pretos e pardos).\n\nVenha construir uma carreira de sucesso em um ambiente que valoriza a pluralidade.\n\n🔗 Aplique agora: ${link}\n\n#VagaAfirmativa #VidasNegrasImportam #DiversidadeRacial #MetaRH ${getTags(job)}`,
+        (job, link) => `🌍 DIVERSIDADE É POTÊNCIA!\n\nBuscamos ${job.title} para integrar nosso time. Esta é uma vaga afirmativa para pessoas negras.\n\nSe você busca uma empresa comprometida com a inclusão e o combate ao racismo estrutural, seu lugar é aqui.\n\n📍 Local: ${job.city || 'Remoto'}\n\n👉 Candidate-se: ${link}\n\n#EquidadeRacial #TalentosNegros #MetaRH ${getTags(job)}`,
+        (job, link) => `OPORTUNIDADE AFIRMATIVA 💼\n\nEstamos contratando ${job.title} (Vaga para Pessoas Negras).\n\nAcreditamos que times diversos constroem melhores resultados. Venha fazer a diferença conosco!\n\n🔗 Detalhes e inscrição: ${link}\n\n#Inclusão #Carreira #VagaAfirmativa #MetaRH ${getTags(job)}`
+    ],
+    'Pessoas com Deficiência': [
+        (job, link) => `♿ VAGA AFIRMATIVA PARA PCD\n\nEstamos em busca de ${job.title}. Esta oportunidade é exclusiva para Pessoas com Deficiência.\n\nValorizamos a competência e o potencial de cada indivíduo, promovendo um ambiente acessível e inclusivo.\n\n🔗 Saiba mais e candidate-se: ${link}\n\n#VagaPCD #Inclusão #Acessibilidade #MetaRH ${getTags(job)}`,
+        (job, link) => `INCLUSÃO EM AÇÃO! 🌟\n\nTem vaga nova para ${job.title} (Foco em Profissionais com Deficiência).\n\nSe você busca uma empresa que respeita e valoriza a diversidade, venha trabalhar conosco!\n\n📍 ${job.city || 'Brasil'}\n\n👉 Inscreva-se no link: ${link}\n\n#PCD #Oportunidade #Diversidade #MetaRH ${getTags(job)}`,
+        (job, link) => `TALENTO SEM BARREIRAS 🚀\n\nOportunidade para ${job.title} - Vaga Afirmativa PCD.\n\nEstamos expandindo nosso time e queremos conhecer você. Junte-se a nós!\n\n🔗 Link para candidatura: ${link}\n\nCompartilhe com quem precisa ver essa vaga! 👇\n\n#VagaAfirmativaPCD #MercadoDeTrabalho #MetaRH ${getTags(job)}`
+    ],
+    'LGBTQIA+': [
+        (job, link) => `🏳️‍🌈 VAGA AFIRMATIVA LGBTQIA+\n\nOrgulho de ser quem você é! Estamos contratando ${job.title}.\n\nBuscamos criar um ambiente seguro, respeitoso e acolhedor para todas as identidades e orientações.\n\n🔗 Venha brilhar conosco: ${link}\n\n#VagaLGBT #Diversidade #Orgulho #MetaRH ${getTags(job)}`,
+        (job, link) => `🌈 DIVERSIDADE GERA VALOR\n\nOportunidade para ${job.title} - Foco na comunidade LGBTQIA+.\n\nAcreditamos que a pluralidade de vozes enriquece nosso trabalho. Se você quer fazer parte de um time inclusivo, candidate-se!\n\n👉 Link: ${link}\n\n#LGBTQIA #Carreira #Inclusão #MetaRH ${getTags(job)}`,
+        (job, link) => `VEM SER VOCÊ! ✨\n\nVaga aberta para ${job.title} (Afirmativa LGBTQIA+).\n\nAqui, respeitamos e celebramos a diversidade. Traga seu talento e sua autenticidade.\n\n🔗 Inscreva-se: ${link}\n\n#Pridework #VagaAfirmativa #MetaRH ${getTags(job)}`
+    ],
+    '50+': [
+        (job, link) => `👵👴 VAGA AFIRMATIVA 50+\n\nExperiência vale ouro! Estamos em busca de ${job.title} com foco em profissionais com mais de 50 anos.\n\nValorizamos a maturidade, a vivência e o conhecimento que você tem a oferecer.\n\n🔗 Candidate-se aqui: ${link}\n\n#Geração50Mais #MaturidadeNoTrabalho #VagaAfirmativa #MetaRH ${getTags(job)}`,
+        (job, link) => `🚀 CARREIRA NÃO TEM IDADE\n\nTem vaga para ${job.title} (Afirmativa 50+).\n\nQueremos somar a sua experiência com a nossa inovação. Venha fazer parte do nosso time!\n\n📍 ${job.city || 'Brasil'}\n\n👉 Aplique agora: ${link}\n\n#Longevidade #Profissionais50Mais #MetaRH ${getTags(job)}`,
+        (job, link) => `OPORTUNIDADE SÊNIOR 🌟\n\nEstamos contratando ${job.title} - Vaga voltada para talentos 50+.\n\nAcreditamos na troca de gerações e no valor da experiência. Junte-se a nós!\n\n🔗 Link da vaga: ${link}\n\n#Vaga50Mais #DiversidadeEtária #MetaRH ${getTags(job)}`
+    ],
+    'Afirmativa (Geral)': [
+        (job, link) => `🤝 VAGA AFIRMATIVA\n\nEstamos com oportunidade para ${job.title} focada em aumentar a diversidade do nosso time.\n\nSe você faz parte de grupos sub-representados, queremos conhecer seu talento!\n\n🔗 Candidate-se: ${link}\n\n#DiversidadeeInclusão #VagaAfirmativa #MetaRH ${getTags(job)}`,
+        (job, link) => `🌟 DIVERSIDADE IMPORTA\n\nBuscamos ${job.title} para somar ao nosso time (Vaga Afirmativa).\n\nValorizamos diferentes perspectivas e vivências. Venha crescer com a gente!\n\n👉 Inscreva-se: ${link}\n\n#Inclusão #Oportunidade #MetaRH ${getTags(job)}`,
+        (job, link) => `VEM TRANSFORMAR! 🚀\n\nVaga aberta: ${job.title} - Vaga Afirmativa.\n\nEstamos construindo um futuro mais inclusivo e precisamos de você. Candidate-se!\n\n🔗 Link: ${link}\n\n#Carreira #Diversidade #MetaRH ${getTags(job)}`
+    ]
+};
 
 // Cores da Especificação
 const COLORS = {
   purple: '#481468', // Roxo Institucional (Texto)
-  vibrantPurple: '#7730d8', // Roxo Vibrante (Tagline)
-  pink: '#F42C9F', // Rosa Neon (Setor)
-  green: '#a3e635', // Verde Lima (Cursor)
-  black: '#1a1a1a', // Títulos
+  vibrantPurple: '#aa3ffe', // Roxo Vibrante (Marca Padrão)
+  
+  // Cores Específicas Vaga Afirmativa
+  affirmativePurple: '#b24eec', // Fundo Roxo
+  affirmativeText1: '#9c5cf5', // "Trabalhe..."
+  affirmativeText2: '#7b28bb', // "Multinacional"
+  affirmativeBox: '#b25af6', // Box do Setor
+  affirmativeContract: '#ed2bf4', // Contrato
+  affirmativeModality: '#9932d8', // Modalidade
+  affirmativeLocation: '#7730d8', // Local
+  
+  pink: '#F42C9F', 
+  green: '#a3e635', 
+  orange: '#ff6b00', 
+  black: '#1a1a1a',
   white: '#FFFFFF'
 };
 
 // Opções para selects
 const CONTRACT_OPTIONS = ['CLT (Efetivo)', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
 const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
+const DIVERSITY_OPTIONS = [
+    'Mulheres',
+    'Pessoas Negras',
+    'Pessoas com Deficiência',
+    'LGBTQIA+',
+    '50+',
+    'Afirmativa (Geral)'
+];
 
-// Hook para converter URL externa em Base64 para evitar problemas de CORS no canvas
 const useBase64Image = (url: string | null) => {
   const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
 
@@ -254,47 +164,32 @@ const useBase64Image = (url: string | null) => {
       setDataSrc(undefined);
       return;
     }
-
-    // Se já for base64, usa direto
     if (url.startsWith('data:')) {
       setDataSrc(url);
       return;
     }
-
     let isMounted = true;
-
     const loadImage = async () => {
       try {
-        // Usa o proxy para evitar bloqueio de CORS
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
         const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error('Network response was not ok');
-        
         const blob = await response.blob();
-        
         const reader = new FileReader();
         reader.onloadend = () => {
-          if (isMounted) {
-            setDataSrc(reader.result as string);
-          }
+          if (isMounted) setDataSrc(reader.result as string);
         };
         reader.readAsDataURL(blob);
       } catch (error) {
-        console.error("Erro ao converter imagem (fallback para url original):", error);
         if (isMounted) setDataSrc(url);
       }
     };
-
     loadImage();
-
     return () => { isMounted = false; };
   }, [url]);
-
   return dataSrc;
 };
 
-// Custom Select Component Local
 interface GeneratorSelectProps {
   label: string;
   value: string;
@@ -370,13 +265,11 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Estado editável do card
-  // Remove potential location info from title (common pattern "Role - City")
   const initialTitle = job.title.split(' - ')[0].trim();
   const [title, setTitle] = useState(initialTitle);
   
-  const [tag1, setTag1] = useState(job.contract_type === 'CLT' ? 'CLT (Efetivo)' : (job.contract_type || 'CLT (Efetivo)')); // Contrato
-  const [tag2, setTag2] = useState(job.remote ? 'Remoto' : 'Presencial'); // Modalidade
+  const [tag1, setTag1] = useState(job.contract_type === 'CLT' ? 'CLT (Efetivo)' : (job.contract_type || 'CLT (Efetivo)'));
+  const [tag2, setTag2] = useState(job.remote ? 'Remoto' : 'Presencial');
   const [location, setLocation] = useState(job.city ? `${job.city}-${job.state}` : 'Brasil');
   const [jobId, setJobId] = useState(String(job.id));
   const [category, setCategory] = useState('SETOR ADMINISTRATIVO'); 
@@ -385,48 +278,58 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [jobImage, setJobImage] = useState(STOCK_IMAGES[0]);
   const [footerUrl, setFooterUrl] = useState('metarh.com.br/vagas-metarh');
   
-  // Caption State
+  const [isAffirmative, setIsAffirmative] = useState(false);
+  const [affirmativeType, setAffirmativeType] = useState(DIVERSITY_OPTIONS[0]);
+
   const [captionText, setCaptionText] = useState('');
   const [currentCaptionIndex, setCurrentCaptionIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // URLs processadas para Base64
   const bgImageBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/Fundo_Vagas.jpg");
   const logoBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/metarh-bola-branca.png");
   const jobImageBase64 = useBase64Image(jobImage);
 
-  // Pré-preencher categoria se disponível
   useEffect(() => {
     if (job.department && job.department !== 'Geral') {
       setCategory(job.department.toUpperCase());
     }
-    // Gera a primeira legenda ao abrir
     generateCaption(0);
   }, [job]);
 
-  // Atualizar tagline baseada no tipo de empresa
+  // Recalculate caption if affirmative state or type changes
+  useEffect(() => {
+      generateCaption(0);
+  }, [isAffirmative, affirmativeType]);
+
   useEffect(() => {
     if (companyType === 'multinacional') {
         setTagline('TRABALHE EM UMA EMPRESA MULTINACIONAL');
     } else if (companyType === 'nacional') {
         setTagline('TRABALHE EM UMA EMPRESA NACIONAL');
     }
-    // Custom mantém o valor digitado
   }, [companyType]);
 
   const generateCaption = (index: number) => {
-      const template = CAPTION_TEMPLATES[index];
-      // Garante que o link esteja atualizado caso o usuário tenha mudado o footerUrl,
-      // mas preferencialmente usa o link oficial da vaga se disponível.
       const link = job.url_apply || footerUrl;
-      
+      let template;
+      let maxIndex;
+
+      if (isAffirmative) {
+          const templates = AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)'];
+          maxIndex = templates.length;
+          template = templates[index % maxIndex];
+      } else {
+          maxIndex = CAPTION_TEMPLATES.length;
+          template = CAPTION_TEMPLATES[index % maxIndex];
+      }
+
       const text = template(job, link);
       setCaptionText(text);
       setCurrentCaptionIndex(index);
   };
 
   const handleNextCaption = () => {
-      const nextIndex = (currentCaptionIndex + 1) % CAPTION_TEMPLATES.length;
+      const nextIndex = currentCaptionIndex + 1;
       generateCaption(nextIndex);
   };
 
@@ -439,33 +342,22 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const handleDownload = async () => {
     if (cardRef.current === null) return;
     setIsGenerating(true);
-
     try {
-      // Aguarda um momento para garantir que o render cycle terminou
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       const dataUrl = await toPng(cardRef.current, { 
         cacheBust: true, 
-        pixelRatio: 2, // Qualidade alta
+        pixelRatio: 2, 
         width: 1080,
         height: 1350,
         skipAutoScale: true,
-        style: {
-            transform: 'none', // Garante que não capture transformações CSS
-            boxShadow: 'none'  // Garante que não capture sombras externas
-        }
+        style: { transform: 'none', boxShadow: 'none' }
       });
-      
       const link = document.createElement('a');
-      link.download = `vaga-metarh-${job.id}.png`;
+      // Use jobId from state to reflect edits
+      link.download = `${jobId}-vaga-metarh.png`;
       link.href = dataUrl;
       link.click();
-      
-      // Incrementa contador no componente pai
-      if (onSuccess) {
-        onSuccess();
-      }
-
+      if (onSuccess) onSuccess();
     } catch (err) {
       console.error('Erro ao gerar imagem:', err);
       alert('Erro ao gerar imagem. Tente novamente.');
@@ -484,53 +376,71 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        if (e.target?.result) {
-          setJobImage(e.target.result as string);
-        }
+        if (e.target?.result) setJobImage(e.target.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  const triggerFileInput = () => fileInputRef.current?.click();
 
-  // Função para calcular o tamanho da fonte do título dinamicamente
   const getTitleFontSize = (text: string) => {
     const len = text.length;
-    // Lógica mais agressiva para garantir que caiba se tiver muitas quebras de linha
     if (len > 100) return '32px';
     if (len > 70) return '40px';
     if (len > 35) return '48px';
     return '56px';
   };
 
-  // Função para calcular o tamanho da fonte da pílula rosa dinamicamente
   const getCategoryFontSize = (text: string) => {
-    // Se for muito longo (ex: > 25 caracteres), diminui a fonte para evitar 3 linhas
     if (text.length > 25) return '22px';
     return '30px';
   }
+  
+  // Tamanho do título de diversidade (convertendo 24px de mobile/A4 para canvas 1080p ~3x)
+  const getDiversityTitleSize = (text: string) => {
+      const len = text.length;
+      if (len > 20) return '72px'; 
+      return '80px';
+  }
 
-  const isReady = bgImageBase64 && logoBase64 && jobImageBase64;
+  const isReady = (bgImageBase64 || isAffirmative) && logoBase64 && jobImageBase64;
+
+  // Layout Constants
+  const CANVAS_WIDTH = 1080;
+  const CANVAS_HEIGHT = 1350;
+
+  // --- Affirmative Layout Constants ---
+  const HEADER_HEIGHT = 569;
+  const FOOTER_HEIGHT = 249;
+  const PHOTO_WIDTH = 436;
+  const PHOTO_TOP = 411;
+  const PHOTO_BOTTOM = 1101; // 1350 - 249
+  const PHOTO_HEIGHT = PHOTO_BOTTOM - PHOTO_TOP;
+  const PHOTO_LEFT = 80; // Margem esquerda padrão
+  
+  const FLOATING_CARD_WIDTH = 424;
+  const FLOATING_CARD_HEIGHT = 201;
+  const FLOATING_CARD_RIGHT = 60;
+  const FLOATING_CARD_TOP = HEADER_HEIGHT - 60 - FLOATING_CARD_HEIGHT; // 569 - 60 - 201 = 308
+  const LOGO_HEIGHT = 100;
+  const LOGO_MARGIN_BOTTOM = 60;
+  
+  // Calculating the exact top position of the logo to align the badge
+  const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; // 308 - 60 - 100 = 148
 
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
       
-      {/* Sidebar de Edição - Rolagem normal */}
+      {/* Editor Sidebar */}
       <div className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1 p-4 lg:p-8 relative z-10">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
                 <Monitor className="w-6 h-6 mr-2 text-brand-600" />
                 Editor de Post
             </h2>
 
-            {/* Content Container */}
             <div className="space-y-6 pr-2">
-                
-                {/* Form Fields */}
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título da Vaga</label>
                     <textarea 
@@ -539,16 +449,12 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                         className="w-full p-4 border border-slate-200 rounded-3xl text-sm font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
                         rows={2}
                     />
-                    <p className="text-[10px] text-slate-400 mt-1 text-right">
-                        {title.length} caracteres (Auto-ajuste de tamanho)
-                    </p>
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center">
                         <Type className="w-3 h-3 mr-1" /> Frase de Efeito
                     </label>
-                    
                     <div className="flex gap-2 mb-3">
                         <button 
                             onClick={() => setCompanyType('multinacional')}
@@ -563,7 +469,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             Nacional
                         </button>
                     </div>
-
                     <input 
                         type="text" 
                         value={tagline} 
@@ -572,13 +477,12 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             setTagline(e.target.value);
                         }}
                         className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"
-                        placeholder="Texto da frase de efeito..."
                     />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula Rosa)</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula)</label>
                         <input 
                             type="text" 
                             value={category} 
@@ -598,6 +502,33 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             />
                         </div>
                     </div>
+                </div>
+                
+                 <div className={`p-4 rounded-3xl border transition-colors duration-300 ${isAffirmative ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className={`block text-xs font-bold uppercase flex items-center ${isAffirmative ? 'text-brand-600' : 'text-slate-500'}`}>
+                            <HeartHandshake className="w-3 h-3 mr-1" /> Vaga Afirmativa?
+                        </label>
+                        <div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+                            <input 
+                                type="checkbox" 
+                                checked={isAffirmative}
+                                onChange={(e) => setIsAffirmative(e.target.checked)}
+                                className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-brand-500"
+                            />
+                            <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200 ${isAffirmative ? 'bg-brand-500' : 'bg-slate-300'}`}></label>
+                        </div>
+                    </div>
+                    {isAffirmative && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                             <GeneratorSelect 
+                                label="Público da Vaga"
+                                value={affirmativeType}
+                                options={DIVERSITY_OPTIONS}
+                                onChange={setAffirmativeType}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -670,11 +601,10 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                     </div>
                 </div>
 
-                {/* Caption Generator Section - UPDATED */}
                 <div className="bg-brand-50 rounded-3xl p-5 border border-brand-100 mt-4">
                     <div className="flex justify-between items-center mb-3">
-                        <label className="block text-xs font-bold text-brand-700 uppercase">
-                            Legenda ({currentCaptionIndex + 1}/{CAPTION_TEMPLATES.length})
+                         <label className="block text-xs font-bold text-brand-700 uppercase">
+                            Legenda ({currentCaptionIndex + 1}/3)
                         </label>
                         <button 
                             onClick={handleNextCaption}
@@ -684,7 +614,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             Próxima Ideia
                         </button>
                     </div>
-
                     <textarea 
                         value={captionText}
                         onChange={(e) => setCaptionText(e.target.value)}
@@ -698,19 +627,16 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                         {copied ? "Copiado!" : "Copiar Legenda"}
                     </button>
                 </div>
-
             </div>
 
-            {/* Action Buttons Footer */}
             <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 gap-3">
                 <button 
                     onClick={onClose}
                     className="py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-full hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
                 >
                     <ChevronLeft className="w-5 h-5" />
-                    Voltar para Vagas
+                    Voltar
                 </button>
-
                 <button 
                     onClick={handleDownload}
                     disabled={isGenerating || !isReady}
@@ -737,223 +663,359 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
         </div>
       </div>
 
-      {/* Área de Preview - Fixed no Desktop (Pop up style behavior) */}
+      {/* Preview Area */}
       <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-4 order-1 lg:order-2 min-h-[500px] lg:fixed lg:right-0 lg:top-0 lg:h-screen z-20">
-        
-        {/* Container de Escala Visual */}
         <div 
             style={{ 
-                transform: 'scale(0.38)', // Reduzido
+                transform: 'scale(0.38)',
                 transformOrigin: 'center center',
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' 
             }}
         >
-            {/* ================= CANVAS START (CAPTURA LIMPA) ================= */}
+            {/* ================= CANVAS START ================= */}
             <div 
                 ref={cardRef}
                 className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900"
                 style={{ 
-                    width: '1080px', 
-                    height: '1350px',
+                    width: `${CANVAS_WIDTH}px`, 
+                    height: `${CANVAS_HEIGHT}px`,
                 }}
             >
-                {/* Background Image Layer */}
-                {bgImageBase64 && (
-                    <img 
-                        src={bgImageBase64}
-                        alt="Background"
-                        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
-                    />
-                )}
-
-                {/* ================== HEADER BRANCO (42% Height) ================== */}
-                <div 
-                    className="relative bg-white w-full z-10"
-                    style={{ 
-                        height: '42%', // aprox 567px
-                        borderBottomLeftRadius: '80px',
-                        borderBottomRightRadius: '80px',
-                    }}
-                >
-                    {/* Safe Area Container */}
-                    <div className="absolute inset-0 flex justify-between" style={{
-                        paddingTop: '145px',
-                        paddingLeft: '135px',
-                        paddingRight: '135px',
-                        paddingBottom: '40px' 
-                    }}>
+                {/* ================= AFFIRMATIVE LAYOUT ================= */}
+                {isAffirmative ? (
+                    <div className="relative w-full h-full flex flex-col bg-white">
                         
-                        {/* Coluna Esquerda: Textos */}
-                        <div className="flex flex-col items-start h-full z-20 max-w-[400px]">
-                            
-                            {/* GRUPO TOPO: Temos Vagas + Tagline */}
-                            <div className="flex flex-col items-start">
-                                {/* 1. Stack #Temos Vagas */}
-                                <div className="relative leading-none mb-0 flex-shrink-0">
-                                    <h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">
-                                        #Temos
-                                    </h1>
-                                    <h1 
-                                        className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]"
-                                        style={{ letterSpacing: '0.01em' }}
-                                    >
-                                        Vagas
-                                    </h1>
-                                </div>
-
-                                {/* 2. Tagline Roxa - Com margem aumentada (mt-[76px]) para descer +10px */}
-                                <div className="w-full mt-[76px]">
-                                    <h2 
-                                        className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full"
-                                        style={{ color: COLORS.vibrantPurple }}
-                                    >
-                                        {tagline}
-                                    </h2>
-                                </div>
+                        {/* 1. Header (Purple) */}
+                        <div 
+                            className="absolute top-0 left-0 w-full z-10"
+                            style={{ 
+                                backgroundColor: COLORS.affirmativePurple,
+                                height: `${HEADER_HEIGHT}px`, 
+                                borderBottomLeftRadius: '80px',
+                                borderBottomRightRadius: '80px',
+                            }}
+                        >
+                            {/* MetaRH Logo - Centered above Card */}
+                            <div 
+                                className="absolute flex items-center justify-center"
+                                style={{
+                                    right: `${FLOATING_CARD_RIGHT}px`,
+                                    width: `${FLOATING_CARD_WIDTH}px`,
+                                    top: `${LOGO_TOP}px`, // Use calculated LOGO_TOP
+                                    height: `${LOGO_HEIGHT}px`
+                                }}
+                            >
+                                {logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}
                             </div>
 
-                            {/* 3. Base: Pílula Setor Rosa */}
-                            {/* Margem aumentada (mt-[76px]) para descer +10px */}
-                            <div className="mt-[76px] w-full"> 
+                            {/* Floating Card - Below Logo */}
+                            <div 
+                                className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6"
+                                style={{
+                                    width: `${FLOATING_CARD_WIDTH}px`,
+                                    height: `${FLOATING_CARD_HEIGHT}px`,
+                                    right: `${FLOATING_CARD_RIGHT}px`,
+                                    top: `${FLOATING_CARD_TOP}px`
+                                }}
+                            >
+                                <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
+                                    <span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span>
+                                    <span style={{ color: COLORS.affirmativeText2 }}>MULTINACIONAL</span>
+                                </h2>
                                 <div 
-                                    className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center"
-                                    style={{ backgroundColor: COLORS.pink, minWidth: '200px' }}
+                                    className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]"
+                                    style={{ backgroundColor: COLORS.affirmativeBox }}
                                 >
-                                    <span 
-                                        className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight"
-                                        style={{ fontSize: getCategoryFontSize(category) }}
-                                    >
+                                    <span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">
                                         {category}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Coluna Direita: Código e Foto */}
-                        <div className="flex flex-col items-center relative z-10" style={{ width: '448px' }}>
-                            {/* Código */}
-                            <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">
-                                Cód.: {jobId}
-                            </span>
-
-                            {/* Moldura da Foto */}
-                            <div 
-                                className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0"
-                                style={{ 
-                                    width: '448px',
-                                    height: '534px',
-                                    borderRadius: '32px',
-                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                                }}
-                            >
-                                {jobImageBase64 && (
-                                    <img 
-                                        src={jobImageBase64} 
-                                        alt="Foto da Vaga" 
-                                        className="w-full h-full object-cover block"
-                                    />
-                                )}
-                            </div>
-
-                            {/* REMOVIDO: Cursor Verde Superior (Código limpo) */}
-                            
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* ================== BODY (FUNDO ROXO / IMAGEM) ================== */}
-                <div className="flex-1 relative flex flex-col items-center w-full z-0">
-                    
-                    {/* Conteúdo Centralizado */}
-                    <div 
-                        className="flex flex-col items-center w-full px-[135px]"
-                        style={{ marginTop: '240px' }} 
-                    >
-                        {/* Título da Vaga */}
-                        <h1 
-                            className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full"
-                            style={{ fontSize: getTitleFontSize(title) }}
+                        {/* 2. Photo Section (Left) */}
+                        <div 
+                            className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200"
+                            style={{
+                                width: `${PHOTO_WIDTH}px`,
+                                height: `${PHOTO_HEIGHT}px`,
+                                top: `${PHOTO_TOP}px`,
+                                left: `${PHOTO_LEFT}px`,
+                                borderRadius: '218px 218px 0 0' // Arch shape
+                            }}
                         >
-                            {title}
-                        </h1>
+                             {jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}
 
-                        {/* Pílulas de Informação */}
-                        <div className="flex flex-wrap justify-center gap-5 w-full">
-                            {tag1 && (
-                                <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
-                                    <span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">
-                                        {tag1}
+                             {/* Job Code - Centered INSIDE photo at bottom */}
+                             <div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30">
+                                 <div className="bg-white px-5 py-1 rounded-full shadow-md">
+                                    <span className="font-sans font-bold text-[24px] text-black">
+                                        Cód.: {jobId}
                                     </span>
-                                </div>
-                            )}
-                            {tag2 && (
-                                <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
-                                    <span 
-                                        className="font-sans font-extrabold text-[24px] uppercase"
-                                        style={{ color: COLORS.purple }}
-                                    >
-                                        {tag2}
-                                    </span>
-                                </div>
-                            )}
-                            {location && (
-                                <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]">
-                                    <span 
-                                        className="font-sans font-extrabold text-[24px] uppercase truncate"
-                                        style={{ color: COLORS.purple }}
-                                    >
-                                        {location}
-                                    </span>
-                                </div>
-                            )}
+                                 </div>
+                             </div>
                         </div>
-                    </div>
 
-                    {/* ================== FOOTER ================== */}
-                    <div className="absolute bottom-0 w-full px-[135px] pb-[145px]">
-                        <div className="w-full h-[1px] bg-white opacity-30 mb-10"></div>
+                         {/* 3. Diversity Title & Badge (Above Photo) */}
+                         {/* Badge aligned with LOGO_TOP */}
+                         <div 
+                            className="absolute z-20 flex flex-col items-center justify-center"
+                            style={{
+                                width: `${PHOTO_WIDTH}px`,
+                                left: `${PHOTO_LEFT}px`,
+                                top: `${LOGO_TOP}px`, 
+                            }}
+                         >
+                             <div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent">
+                                <span className="font-sans font-medium text-white text-[39px] tracking-wide">
+                                   Vaga Afirmativa
+                                </span>
+                             </div>
+                         </div>
 
-                        <div className="flex items-center justify-between w-full">
-                            <div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">
-                                {logoBase64 && (
-                                    <img 
-                                        src={logoBase64} 
-                                        alt="MetaRH" 
-                                        className="w-full h-full object-contain"
-                                    />
+                         {/* Diversity Title - Positioned below Badge with REDUCED gap and tighter line height */}
+                         <div
+                             className="absolute z-20 flex flex-col items-center justify-center"
+                             style={{
+                                 width: `${PHOTO_WIDTH}px`,
+                                 left: `${PHOTO_LEFT}px`,
+                                 // Badge height approx 60px + increased gap (30px)
+                                 top: `${LOGO_TOP + 60 + 30}px`,
+                             }}
+                         >
+                             <h1 
+                                className="font-sans font-black text-white text-center drop-shadow-md"
+                                style={{ 
+                                    fontSize: getDiversityTitleSize(affirmativeType),
+                                    lineHeight: '0.85' // Tighter line height for broken text
+                                }}
+                             >
+                                 {affirmativeType}
+                             </h1>
+                         </div>
+
+
+                        {/* 4. White Body Content (Right Side) */}
+                        <div 
+                            className="absolute z-10 flex flex-col items-center"
+                            style={{
+                                top: `${HEADER_HEIGHT}px`, // Start below header
+                                bottom: `${FOOTER_HEIGHT}px`, // End above footer
+                                left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, // Right of photo
+                                right: 0,
+                                justifyContent: 'center', // Vertically center in white space
+                            }}
+                        >
+                             {/* Job Title */}
+                             <h2 
+                                className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]"
+                                style={{ fontSize: getTitleFontSize(title) }}
+                            >
+                                {title}
+                            </h2>
+
+                            {/* Pills Group */}
+                            <div className="flex flex-col items-center gap-[28px]">
+                                {/* Row 1: Contract & Modality */}
+                                <div className="flex gap-4">
+                                    {tag1 && (
+                                        <div 
+                                            className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]"
+                                            style={{ backgroundColor: COLORS.affirmativeContract }}
+                                        >
+                                            <span className="font-sans font-bold text-[24px] uppercase text-white">
+                                                {tag1}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {tag2 && (
+                                        <div 
+                                            className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]"
+                                            style={{ backgroundColor: COLORS.affirmativeModality }}
+                                        >
+                                            <span className="font-sans font-bold text-[24px] uppercase text-white">
+                                                {tag2}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Row 2: Location */}
+                                {location && (
+                                    <div 
+                                        className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]"
+                                        style={{ backgroundColor: COLORS.affirmativeLocation }}
+                                    >
+                                        <span className="font-sans font-bold text-[24px] uppercase text-white truncate">
+                                            {location}
+                                        </span>
+                                    </div>
                                 )}
                             </div>
+                        </div>
 
-                            <div className="flex flex-col items-end text-right relative mr-12">
-                                <span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">
-                                    Candidate-se gratuitamente em
-                                </span>
-                                <span className="text-white font-sans font-bold text-[27px]">
-                                    {footerUrl}
-                                </span>
+                        {/* 5. Footer (Purple) */}
+                        <div 
+                            className="absolute bottom-0 left-0 w-full z-30 flex"
+                            style={{ 
+                                backgroundColor: COLORS.affirmativePurple,
+                                height: `${FOOTER_HEIGHT}px`,
+                                borderTopLeftRadius: '80px',
+                                borderTopRightRadius: '80px',
+                                // Align to top (near photo)
+                                alignItems: 'flex-start',
+                                justifyContent: 'center',
+                                paddingTop: '30px'
+                            }}
+                        >
+                             {/* Call to Action - Single Line Centered Horizontally */}
+                             <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full">
+                                 <div className="flex items-center gap-3">
+                                    <span className="font-sans font-medium text-[28px] text-white opacity-90">
+                                        Candidate-se gratuitamente em
+                                    </span>
+                                    <span className="font-sans font-bold text-[32px] text-white">
+                                        {footerUrl}
+                                    </span>
+                                    {/* Arrow Lowered */}
+                                    <div className="transform rotate-12 translate-y-[10px]">
+                                        <svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+                                            <path d="M13 13l6 6"></path>
+                                        </svg>
+                                    </div>
+                                 </div>
+                             </div>
+                        </div>
 
-                                <div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg">
-                                    <svg 
-                                        width="42" 
-                                        height="42" 
-                                        viewBox="0 0 24 24" 
-                                        fill={COLORS.green} 
-                                        stroke="white" 
-                                        strokeWidth="1.5"
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round"
+                    </div>
+                ) : (
+                    /* ================= STANDARD LAYOUT ================= */
+                    <>
+                        {/* Background Image Layer */}
+                        {bgImageBase64 && (
+                            <img 
+                                src={bgImageBase64}
+                                alt="Background"
+                                className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+                            />
+                        )}
+                        
+                        {/* Standard Header (White) */}
+                        <div 
+                            className="relative w-full z-10 bg-white"
+                            style={{ 
+                                height: '42%',
+                                borderBottomLeftRadius: '80px',
+                                borderBottomRightRadius: '80px',
+                            }}
+                        >
+                            <div className="absolute inset-0 flex justify-between" style={{
+                                paddingTop: '145px',
+                                paddingLeft: '135px',
+                                paddingRight: '135px',
+                                paddingBottom: '40px' 
+                            }}>
+                                {/* Left Content */}
+                                <div className="flex flex-col items-start w-full">
+                                    <div className="relative leading-none mb-0 flex-shrink-0">
+                                        <h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">
+                                            #Temos
+                                        </h1>
+                                        <h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>
+                                            Vagas
+                                        </h1>
+                                    </div>
+                                    <div className="w-full mt-[76px]">
+                                        <h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>
+                                            {tagline}
+                                        </h2>
+                                    </div>
+                                    <div className="mt-[50px] w-full flex flex-col gap-4 items-start"> 
+                                        <div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}>
+                                            <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>
+                                                {category}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Photo */}
+                                <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}>
+                                    <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">
+                                        Cód.: {jobId}
+                                    </span>
+                                    <div 
+                                        className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0"
+                                        style={{ 
+                                            width: '448px',
+                                            height: '534px',
+                                            borderRadius: '32px',
+                                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                                        }}
                                     >
-                                        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                                        <path d="M13 13l6 6"></path>
-                                    </svg>
+                                        {jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                </div>
+                        {/* Standard Body (Purple/Dark) */}
+                        <div className="flex-1 relative flex flex-col items-center w-full z-0">
+                            <div className="flex flex-col items-center w-full px-[135px]" style={{ marginTop: '240px' }}>
+                                <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>
+                                    {title}
+                                </h1>
+                                <div className="flex flex-wrap justify-center gap-5 w-full">
+                                    {tag1 && (
+                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
+                                            <span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">
+                                                {tag1}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {tag2 && (
+                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
+                                            <span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>
+                                                {tag2}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {location && (
+                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]">
+                                            <span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>
+                                                {location}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
+                            <div className="absolute bottom-0 w-full px-[135px] pb-[145px]">
+                                <div className="w-full h-[1px] bg-white opacity-30 mb-10"></div>
+                                <div className="flex items-center justify-between w-full">
+                                    <div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">
+                                        {logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}
+                                    </div>
+                                    <div className="flex flex-col items-end text-right relative mr-12">
+                                        <span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">
+                                            Candidate-se gratuitamente em
+                                        </span>
+                                        <span className="text-white font-sans font-bold text-[27px]">
+                                            {footerUrl}
+                                        </span>
+                                        <div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg">
+                                            <svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+                                                <path d="M13 13l6 6"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
              {/* ================= CANVAS END ================= */}
         </div>
