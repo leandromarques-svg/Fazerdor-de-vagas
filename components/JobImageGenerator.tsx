@@ -3,31 +3,232 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SelectyJobResponse } from '../types';
 import { toPng } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Upload, Link as LinkIcon, Copy, CheckCircle } from 'lucide-react';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Upload, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
   onClose: () => void;
+  onSuccess?: () => void; // Adicionado prop de sucesso
 }
 
-// Imagens de escritório genéricas para o frame da foto (Expandido)
+// Imagens de escritório expandidas (Foco em Pessoas e Portrait/Vertical)
 const STOCK_IMAGES = [
-  "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=800&q=80", // Office Moderno
-  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80", // Team Meeting
-  "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?auto=format&fit=crop&w=800&q=80", // Red brick office
-  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=800&q=80", // Meeting Hall
-  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80", // Standing meeting
-  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80", // Professional woman
-  "https://images.unsplash.com/photo-1664575602554-2087b04935a5?auto=format&fit=crop&w=800&q=80", // Corporate Woman
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80", // High rise building
-  "https://images.unsplash.com/photo-1568992687947-86c22da06ea0?auto=format&fit=crop&w=800&q=80", // Modern Meeting
-  "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80", // Brainstorming
-  "https://images.unsplash.com/photo-1593642632823-8f785e67ac73?auto=format&fit=crop&w=800&q=80", // Desk setup
-  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80", // Startup vibe
-  "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80", // Analytics / Dashboard
-  "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80", // Industrial / Tech
-  "https://images.unsplash.com/photo-1504384308090-c54be3855833?auto=format&fit=crop&w=800&q=80", // Industrial
-  "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80"  // Warehouse / Logistics
+  // Mulheres Corporativo / Retrato
+  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1598550832205-d416966b840e?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1664575602554-2087b04935a5?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1573497491208-6b1acb260507?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+  
+  // Homens Corporativo / Retrato
+  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1530268729831-4b0b9e170218?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1480429370139-e0132c086e2a?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=600&q=80",
+  
+  // Equipes / Reuniões / Colaboração
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1573164574572-cb8f5647d857?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1559523182-a284c3fb7cff?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80",
+  
+  // Ambiente Criativo / Moderno / Casual
+  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1568992687947-86c22da06ea0?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1593642632823-8f785e67ac73?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
+  
+  // Conceitual / Close-up
+  "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1553877606-3c9cb40559dc?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80"
+];
+
+// Helper para hashtags padrão
+const getTags = (job: SelectyJobResponse) => {
+    const cityTag = job.city ? `#${job.city.replace(/\s+/g, '').toLowerCase()}` : '';
+    const deptTag = job.department ? `#${job.department.replace(/\s+/g, '').toLowerCase()}` : '';
+    // Remove duplicatas e espaços vazios
+    return [...new Set(['#vagas', '#emprego', '#METARH', '#carreira', '#oportunidade', cityTag, deptTag])].filter(Boolean).join(' ');
+};
+
+// Templates de Legenda (10 Variações)
+const CAPTION_TEMPLATES = [
+    // 1. Clássica
+    (job: SelectyJobResponse, link: string) => 
+`🚀 OPORTUNIDADE DE CARREIRA
+
+Estamos buscando talentos para atuar como ${job.title}!
+
+📍 Local: ${job.city || 'Brasil'} (${job.remote ? 'Remoto' : 'Presencial'})
+💼 Tipo: ${job.contract_type || 'CLT'}
+🏢 Setor: ${job.department || 'Geral'}
+
+Se você busca desenvolvimento profissional e novos desafios, essa vaga é para você.
+
+🔗 Inscreva-se agora: ${link}
+
+${getTags(job)}`,
+
+    // 2. Entusiasta
+    (job: SelectyJobResponse, link: string) =>
+`🌟 VEM PRO TIME!
+
+Tem vaga nova na área para ${job.title}. Se você é apaixonado pelo que faz e quer crescer em um ambiente dinâmico, queremos te conhecer!
+
+✅ O que oferecemos:
+- Ambiente colaborativo
+- Oportunidade de crescimento
+- Atuação ${job.remote ? '100% Remota' : `em ${job.city}`}
+
+👉 Curtiu? Corre pra se inscrever: ${link}
+
+${getTags(job)}`,
+
+    // 3. Minimalista / Direta
+    (job: SelectyJobResponse, link: string) =>
+`Vaga aberta: ${job.title} 🎯
+
+Estamos contratando profissionais para compor o time de um de nossos parceiros.
+
+📍 ${job.city || 'Local a definir'}
+📝 ${job.contract_type || 'Contrato'}
+
+Link para aplicação nos comentários e abaixo:
+🔗 ${link}
+
+${getTags(job)}`,
+
+    // 4. Focada em Perfil (Pergunta)
+    (job: SelectyJobResponse, link: string) =>
+`Você é um ${job.title} em busca de novos desafios? 🤔
+
+Estamos com uma posição aberta que pode ser o próximo passo na sua carreira! 
+
+Buscamos alguém proativo para atuar em ${job.city || 'nossa sede'}.
+
+Confira os detalhes completos e aplique aqui:
+👉 ${link}
+
+Marque um amigo que manda bem nessa área! 👇
+${getTags(job)}`,
+
+    // 5. Urgente / Ação
+    (job: SelectyJobResponse, link: string) =>
+`🚨 PROCESSO SELETIVO ABERTO
+
+Vaga: ${job.title}
+Regime: ${job.contract_type || 'CLT'}
+Local: ${job.remote ? 'Remoto 🏠' : `${job.city} 🏢`}
+
+Não perca tempo! As inscrições estão abertas e queremos fechar essa vaga com alguém incrível (você?).
+
+Acesse o link e cadastre seu currículo:
+📲 ${link}
+
+${getTags(job)}`,
+
+    // 6. Focada na METARH (Corrigido Maiúsculas)
+    (job: SelectyJobResponse, link: string) =>
+`A METARH conecta você às melhores oportunidades! 🌐
+
+Nova posição disponível para: ${job.title}.
+
+Faça parte de empresas que valorizam o capital humano.
+📍 Atuação: ${job.city || 'Brasil'}
+
+Detalhes e inscrição:
+${link}
+
+${getTags(job)}`,
+
+    // 7. Networking (Você ou Indicação)
+    (job: SelectyJobResponse, link: string) =>
+`Networking é tudo! 🤝
+
+Estamos com vaga aberta para ${job.title}.
+
+Você é essa pessoa ou conhece alguém com esse perfil? Ajude essa oportunidade chegar no talento certo marcando nos comentários.
+
+🔗 Link da vaga: ${link}
+
+${getTags(job)}`,
+
+    // 8. Detalhada (Bullets)
+    (job: SelectyJobResponse, link: string) =>
+`OPORTUNIDADE: ${job.title} 💼
+
+📌 Detalhes da vaga:
+▪️ Setor: ${job.department || 'Geral'}
+▪️ Modelo: ${job.remote ? 'Remoto' : 'Presencial'}
+▪️ Contrato: ${job.contract_type || 'A combinar'}
+▪️ Cidade: ${job.city || 'Não informado'}
+
+Buscamos profissionais engajados e prontos para somar.
+
+Inscreva-se: ${link}
+
+${getTags(job)}`,
+
+    // 9. Vaga no Radar (Melhorada)
+    (job: SelectyJobResponse, link: string) =>
+`VAGA NO RADAR! 🎯
+
+Oportunidade para ${job.title} em ${job.city || 'aberto'}.
+
+Se você busca uma recolocação ou um novo desafio profissional, essa é a hora. Processo seletivo ágil conduzido pela METARH.
+
+Acesse e candidate-se:
+${link}
+
+${getTags(job)}`,
+
+    // 10. Foco no Cliente/Parceiro (Reescrita)
+    (job: SelectyJobResponse, link: string) =>
+`A METARH conecta você a grandes empresas! 🌐
+
+Estamos selecionando ${job.title} para atuar em um de nossos clientes parceiros.
+
+Uma excelente chance de alavancar sua carreira no mercado.
+
+📍 ${job.city || 'Brasil'}
+🔗 Candidate-se: ${link}
+
+${getTags(job)}`
 ];
 
 // Cores da Especificação
@@ -41,7 +242,7 @@ const COLORS = {
 };
 
 // Opções para selects
-const CONTRACT_OPTIONS = ['CLT', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
+const CONTRACT_OPTIONS = ['CLT (Efetivo)', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
 const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
 
 // Hook para converter URL externa em Base64 para evitar problemas de CORS no canvas
@@ -93,7 +294,78 @@ const useBase64Image = (url: string | null) => {
   return dataSrc;
 };
 
-export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClose }) => {
+// Custom Select Component Local
+interface GeneratorSelectProps {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+}
+
+const GeneratorSelect: React.FC<GeneratorSelectProps> = ({ label, value, options, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`relative w-full pl-4 pr-8 py-2.5 border rounded-full text-left transition-all focus:outline-none text-xs bg-white
+          ${isOpen 
+            ? 'border-[#aa3ffe] ring-2 ring-[#aa3ffe]/20 shadow-sm' 
+            : 'border-slate-200 hover:border-brand-300'
+          }
+        `}
+      >
+        <span className="block truncate font-medium text-slate-700">
+          {value || "Selecione..."}
+        </span>
+        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#aa3ffe]' : ''}`} />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+          <ul className="py-1">
+            {options.map((option) => (
+              <li
+                key={option}
+                onClick={() => {
+                    onChange(option);
+                    setIsOpen(false);
+                }}
+                className={`px-4 py-2 cursor-pointer flex items-center justify-between text-xs transition-colors
+                  ${value === option 
+                    ? 'bg-brand-50 text-brand-700 font-bold' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
+                  }
+                `}
+              >
+                <span className="truncate">{option}</span>
+                {value === option && <Check className="w-3 h-3 text-brand-600" />}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClose, onSuccess }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -103,7 +375,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const initialTitle = job.title.split(' - ')[0].trim();
   const [title, setTitle] = useState(initialTitle);
   
-  const [tag1, setTag1] = useState(job.contract_type || 'CLT'); // Contrato
+  const [tag1, setTag1] = useState(job.contract_type === 'CLT' ? 'CLT (Efetivo)' : (job.contract_type || 'CLT (Efetivo)')); // Contrato
   const [tag2, setTag2] = useState(job.remote ? 'Remoto' : 'Presencial'); // Modalidade
   const [location, setLocation] = useState(job.city ? `${job.city}-${job.state}` : 'Brasil');
   const [jobId, setJobId] = useState(String(job.id));
@@ -115,6 +387,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   
   // Caption State
   const [captionText, setCaptionText] = useState('');
+  const [currentCaptionIndex, setCurrentCaptionIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
   // URLs processadas para Base64
@@ -127,7 +400,8 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     if (job.department && job.department !== 'Geral') {
       setCategory(job.department.toUpperCase());
     }
-    generateCaption();
+    // Gera a primeira legenda ao abrir
+    generateCaption(0);
   }, [job]);
 
   // Atualizar tagline baseada no tipo de empresa
@@ -140,9 +414,20 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     // Custom mantém o valor digitado
   }, [companyType]);
 
-  const generateCaption = () => {
-      const text = `🚀 OPORTUNIDADE DE CARREIRA\n\nEstamos buscando talentos para atuar como ${job.title}!\n\n📍 Local: ${job.city || 'Brasil'} (${job.remote ? 'Remoto' : 'Presencial'})\n💼 Tipo: ${job.contract_type || 'CLT'}\n🏢 Setor: ${job.department || 'Geral'}\n\nSe você busca desenvolvimento profissional e novos desafios, essa vaga é para você.\n\n🔗 Inscreva-se agora: ${job.url_apply || footerUrl}\n\n#vagas #emprego #metarh #carreira #oportunidade #${job.city?.replace(/\s/g, '').toLowerCase() || 'brasil'}`;
+  const generateCaption = (index: number) => {
+      const template = CAPTION_TEMPLATES[index];
+      // Garante que o link esteja atualizado caso o usuário tenha mudado o footerUrl,
+      // mas preferencialmente usa o link oficial da vaga se disponível.
+      const link = job.url_apply || footerUrl;
+      
+      const text = template(job, link);
       setCaptionText(text);
+      setCurrentCaptionIndex(index);
+  };
+
+  const handleNextCaption = () => {
+      const nextIndex = (currentCaptionIndex + 1) % CAPTION_TEMPLATES.length;
+      generateCaption(nextIndex);
   };
 
   const handleCopyCaption = () => {
@@ -175,6 +460,12 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
       link.download = `vaga-metarh-${job.id}.png`;
       link.href = dataUrl;
       link.click();
+      
+      // Incrementa contador no componente pai
+      if (onSuccess) {
+        onSuccess();
+      }
+
     } catch (err) {
       console.error('Erro ao gerar imagem:', err);
       alert('Erro ao gerar imagem. Tente novamente.');
@@ -225,10 +516,9 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const isReady = bgImageBase64 && logoBase64 && jobImageBase64;
 
   return (
-    <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative">
+    <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
       
-      {/* Sidebar de Edição - Com Scroll Independente na visualização Mobile, mas fluxo normal no Desktop */}
-      {/* Removido flex-row do pai e ajustado padding para permitir full-width na direita */}
+      {/* Sidebar de Edição - Rolagem normal */}
       <div className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1 p-4 lg:p-8 relative z-10">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
             
@@ -293,7 +583,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             type="text" 
                             value={category} 
                             onChange={(e) => setCategory(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-full text-sm"
+                            className="w-full p-3 border border-slate-200 rounded-full text-sm font-sans font-bold"
                         />
                     </div>
                     <div>
@@ -312,31 +602,20 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
 
                 <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-1">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Contrato</label>
-                        <select 
-                            value={tag1} 
-                            onChange={(e) => setTag1(e.target.value)}
-                            className="w-full p-2.5 border border-slate-200 rounded-full text-xs bg-white"
-                        >
-                            {CONTRACT_OPTIONS.map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                            <option value={tag1}>Outro...</option>
-                        </select>
+                        <GeneratorSelect 
+                            label="Contrato"
+                            value={tag1}
+                            options={CONTRACT_OPTIONS}
+                            onChange={setTag1}
+                        />
                     </div>
                     <div className="col-span-1">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Modalidade</label>
-                        <select 
-                            type="text" 
-                            value={tag2} 
-                            onChange={(e) => setTag2(e.target.value)}
-                            className="w-full p-2.5 border border-slate-200 rounded-full text-xs bg-white"
-                        >
-                             {MODALITY_OPTIONS.map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                             <option value={tag2}>Outro...</option>
-                        </select>
+                        <GeneratorSelect 
+                            label="Modalidade"
+                            value={tag2}
+                            options={MODALITY_OPTIONS}
+                            onChange={setTag2}
+                        />
                     </div>
                     <div className="col-span-1">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Local</label>
@@ -391,9 +670,21 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                     </div>
                 </div>
 
-                {/* Caption Generator Section */}
+                {/* Caption Generator Section - UPDATED */}
                 <div className="bg-brand-50 rounded-3xl p-5 border border-brand-100 mt-4">
-                    <label className="block text-xs font-bold text-brand-700 uppercase mb-2">Sugestão de Legenda (Linkedin/Instagram)</label>
+                    <div className="flex justify-between items-center mb-3">
+                        <label className="block text-xs font-bold text-brand-700 uppercase">
+                            Legenda ({currentCaptionIndex + 1}/{CAPTION_TEMPLATES.length})
+                        </label>
+                        <button 
+                            onClick={handleNextCaption}
+                            className="px-3 py-1.5 bg-white border border-brand-200 text-brand-700 rounded-full text-[10px] font-bold hover:bg-brand-100 transition-colors flex items-center gap-1"
+                        >
+                            <RefreshCw className="w-3 h-3" />
+                            Próxima Ideia
+                        </button>
+                    </div>
+
                     <textarea 
                         value={captionText}
                         onChange={(e) => setCaptionText(e.target.value)}
@@ -446,9 +737,8 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
         </div>
       </div>
 
-      {/* Área de Preview - Container Pai (Visualização apenas) */}
-      {/* Mobile: Ordem 1, Scroll normal. Desktop: Fixo na lateral direita (Popup like) ocupando 2/3 */}
-      <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-200/50 rounded-none lg:rounded-none border-b lg:border-b-0 lg:border-l border-slate-300 p-4 order-1 lg:order-2 overflow-hidden min-h-[500px] lg:fixed lg:top-0 lg:right-0 lg:h-screen z-20">
+      {/* Área de Preview - Fixed no Desktop (Pop up style behavior) */}
+      <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-4 order-1 lg:order-2 min-h-[500px] lg:fixed lg:right-0 lg:top-0 lg:h-screen z-20">
         
         {/* Container de Escala Visual */}
         <div 
@@ -530,7 +820,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                     style={{ backgroundColor: COLORS.pink, minWidth: '200px' }}
                                 >
                                     <span 
-                                        className="font-condensed font-black text-white uppercase tracking-wide text-center leading-tight"
+                                        className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight"
                                         style={{ fontSize: getCategoryFontSize(category) }}
                                     >
                                         {category}
@@ -564,6 +854,9 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                     />
                                 )}
                             </div>
+
+                            {/* REMOVIDO: Cursor Verde Superior (Código limpo) */}
+                            
                         </div>
 
                     </div>

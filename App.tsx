@@ -7,7 +7,7 @@ import { JobCard } from './components/JobCard';
 import { JobModal } from './components/JobModal';
 import { JobImageGenerator } from './components/JobImageGenerator';
 import { Filters } from './components/Filters';
-import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus } from 'lucide-react';
+import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus, Wand2, Palette, Clock, HeartHandshake, Sparkles } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -23,11 +23,34 @@ export default function App() {
     keyword: '',
     location: '',
     jobCode: '',
-    specificDate: '' // Changed from dateRange to specificDate
+    specificDate: ''
   });
+
+  // Stats State
+  const [stats, setStats] = useState({ count: 0, hoursSaved: 0 });
 
   // Visible Count State (Load More logic)
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+
+  // --- Stats Logic ---
+  useEffect(() => {
+    // Tenta pegar do localStorage ou inicia com um número base "fake" para dar sensação de uso
+    const savedCount = localStorage.getItem('metarh_gen_count');
+    const initialCount = savedCount ? parseInt(savedCount, 10) : 0;
+    
+    // 15 minutos = 0.25 horas
+    const hours = Math.floor(initialCount * 0.25);
+    
+    setStats({ count: initialCount, hoursSaved: hours });
+  }, []);
+
+  const handleImageGeneratedSuccess = () => {
+    const newCount = stats.count + 1;
+    const newHours = Math.floor(newCount * 0.25); // 15 min por imagem
+    
+    localStorage.setItem('metarh_gen_count', String(newCount));
+    setStats({ count: newCount, hoursSaved: newHours });
+  };
 
   // --- Iframe Resizer Logic ---
   useEffect(() => {
@@ -38,11 +61,8 @@ export default function App() {
       const root = document.getElementById('root');
       if (!root) return;
 
-      // Use scrollHeight of the root container to get accurate content height
       const height = root.scrollHeight;
       
-      // Check threshold to prevent infinite loops (1px jitter)
-      // Only update if height changed by more than 2 pixels
       if (Math.abs(height - lastHeight) > 2) {
         lastHeight = height;
         window.parent.postMessage({ type: 'setHeight', height: height }, '*');
@@ -51,21 +71,17 @@ export default function App() {
 
     const debouncedSendHeight = () => {
       clearTimeout(resizeTimer);
-      // Debounce to prevent rapid firing during layout reflows
       resizeTimer = setTimeout(sendHeight, 50);
     };
 
-    // 1. Initial send
     debouncedSendHeight();
 
-    // 2. Observer attached to root element instead of body to avoid iframe window resize loops
     const resizeObserver = new ResizeObserver(debouncedSendHeight);
     const root = document.getElementById('root');
     if (root) {
       resizeObserver.observe(root);
     }
     
-    // 3. Window resize/load events
     window.addEventListener('resize', debouncedSendHeight);
     window.addEventListener('load', debouncedSendHeight);
 
@@ -75,7 +91,7 @@ export default function App() {
       window.removeEventListener('load', debouncedSendHeight);
       clearTimeout(resizeTimer);
     };
-  }, [visibleCount, jobs, loading, filters, selectedJob, jobForGenerator]); // Re-run if major state changes affecting layout occur
+  }, [visibleCount, jobs, loading, filters, selectedJob, jobForGenerator, stats]); 
 
   const loadData = async () => {
     setLoading(true);
@@ -100,9 +116,8 @@ export default function App() {
     setVisibleCount(ITEMS_PER_PAGE);
   }, [filters]);
 
-  // Handler para abrir detalhes da vaga
   const handleShowDetails = (job: SelectyJobResponse) => {
-    setJobForGenerator(null); // Close generator if open
+    setJobForGenerator(null); 
     setSelectedJob(job);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
@@ -115,9 +130,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  // Handler para abrir gerador de imagem
   const handleOpenGenerator = (job: SelectyJobResponse) => {
-    setSelectedJob(null); // Close details if open
+    setSelectedJob(null); 
     setJobForGenerator(job);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
@@ -130,7 +144,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  // Derive unique filter options
   const locations = useMemo(() => {
     const locs = new Set<string>();
     jobs.forEach(job => {
@@ -140,7 +153,6 @@ export default function App() {
     return Array.from(locs).sort();
   }, [jobs]);
 
-  // Filter logic
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       const searchMatch = filters.keyword === '' || 
@@ -153,14 +165,11 @@ export default function App() {
       const codeMatch = filters.jobCode === '' || 
         String(job.id).toLowerCase().includes(filters.jobCode.toLowerCase());
 
-      // Specific Date filtering logic
       let dateMatch = true;
       if (filters.specificDate && job.published_at) {
-        // Normalize job date to YYYY-MM-DD
         const jobDate = new Date(job.published_at);
-        const jobDateString = jobDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const jobDateString = jobDate.toISOString().split('T')[0]; 
         
-        // filters.specificDate matches YYYY-MM-DD from input type="date"
         if (jobDateString !== filters.specificDate) {
             dateMatch = false;
         }
@@ -170,7 +179,6 @@ export default function App() {
     });
   }, [jobs, filters]);
 
-  // Slicing logic for "Load More"
   const visibleJobs = useMemo(() => {
     return filteredJobs.slice(0, visibleCount);
   }, [filteredJobs, visibleCount]);
@@ -181,7 +189,90 @@ export default function App() {
     setVisibleCount(prev => prev + ITEMS_PER_PAGE);
   };
 
-  // Render View Logic
+  // Reusable Layout Components
+  const headerContent = (
+    <>
+       {/* Header Image Banner */}
+       <div className="w-full bg-white">
+            <img 
+            src="https://metarh.com.br/wp-content/uploads/2025/11/banner_app.png" 
+            alt="MetaRH Banner" 
+            className="w-full h-auto block"
+            style={{ minWidth: '320px' }}
+            />
+        </div>
+
+        {/* Título Fazedor de Vaga e Stats */}
+        <div className="w-full bg-white pt-6 px-4 pb-6">
+            <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                
+                {/* Título */}
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-brand-50 rounded-full">
+                        <Wand2 className="w-6 h-6 text-brand-600" />
+                    </div>
+                    <h1 className="text-3xl font-sans font-black text-slate-900 tracking-tight uppercase">
+                        Fazedor de Vaga
+                    </h1>
+                </div>
+
+                {/* Stats Dashboard */}
+                <div className="flex gap-3 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex items-center gap-3 min-w-[160px]">
+                            <div className="bg-white p-2 rounded-full shadow-sm">
+                                <Palette className="w-4 h-4 text-brand-500" />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold text-slate-900 leading-none">{stats.count}</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Artes Geradas</div>
+                            </div>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex items-center gap-3 min-w-[160px]">
+                            <div className="bg-white p-2 rounded-full shadow-sm">
+                                <Clock className="w-4 h-4 text-blue-500" />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold text-slate-900 leading-none">
+                                    {Math.floor(stats.count * 15 / 60)}h {(stats.count * 15) % 60}m
+                                </div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Tempo Poupado</div>
+                            </div>
+                    </div>
+
+                    <div className="bg-brand-50 rounded-2xl p-3 border border-brand-100 flex items-center gap-3 min-w-[200px]">
+                            <div className="bg-white p-2 rounded-full shadow-sm">
+                                <Sparkles className="w-4 h-4 text-brand-600" />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold text-brand-700 leading-none">
+                                    {Math.floor(stats.count * 15 / 60)} horas
+                                </div>
+                                <div className="text-[10px] font-bold text-brand-600/80 uppercase tracking-wide">de terapia poupada</div>
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+            </div>
+        </div>
+    </>
+  );
+
+  const footerContent = (
+    <footer className="w-full py-8 border-t border-slate-100 mt-auto bg-white">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-slate-400">
+        <span className="text-xs font-bold uppercase tracking-wider">Produzido por</span>
+        <img 
+            src="https://metarh.com.br/wp-content/uploads/2025/11/logo-metarh-azul.png" 
+            alt="MetaRH" 
+            className="w-[65px] h-auto opacity-80 hover:opacity-100 transition-opacity"
+        />
+        </div>
+    </footer>
+  );
+
   const renderContent = () => {
     if (jobForGenerator) {
         return (
@@ -189,6 +280,7 @@ export default function App() {
                 <JobImageGenerator 
                     job={jobForGenerator} 
                     onClose={handleCloseGenerator} 
+                    onSuccess={handleImageGeneratedSuccess}
                 />
             </div>
         );
@@ -207,17 +299,9 @@ export default function App() {
 
     return (
         <>
-          {/* Header Image Banner */}
-          <div className="w-full bg-white">
-             <img 
-               src="https://metarh.com.br/wp-content/uploads/2025/11/banner_app.png" 
-               alt="MetaRH Banner" 
-               className="w-full h-auto block"
-               style={{ minWidth: '320px' }}
-             />
-          </div>
+          {headerContent}
 
-          {/* Header / Filtros */}
+          {/* Filtros */}
           <div className="w-full z-20 bg-white border-b border-slate-200 shadow-sm sticky top-0">
             <div className="max-w-7xl mx-auto px-4 pt-4 pb-4">
                 <Filters 
@@ -313,6 +397,8 @@ export default function App() {
                 )}
               </div>
           </main>
+
+          {footerContent}
         </>
     );
   };
