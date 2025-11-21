@@ -429,6 +429,11 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   // Calculating the exact top position of the logo to align the badge
   const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; // 308 - 60 - 100 = 148
 
+  // Logic to determine total captions available
+  const totalCaptions = isAffirmative 
+      ? (AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)']).length
+      : CAPTION_TEMPLATES.length;
+
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
       
@@ -604,7 +609,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                 <div className="bg-brand-50 rounded-3xl p-5 border border-brand-100 mt-4">
                     <div className="flex justify-between items-center mb-3">
                          <label className="block text-xs font-bold text-brand-700 uppercase">
-                            Legenda ({currentCaptionIndex + 1}/3)
+                            Legenda ({(currentCaptionIndex % totalCaptions) + 1}/{totalCaptions})
                         </label>
                         <button 
                             onClick={handleNextCaption}
@@ -719,8 +724,14 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                 }}
                             >
                                 <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
-                                    <span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span>
-                                    <span style={{ color: COLORS.affirmativeText2 }}>MULTINACIONAL</span>
+                                    {companyType === 'custom' ? (
+                                         <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
+                                    ) : (
+                                        <>
+                                            <span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span>
+                                            <span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span>
+                                        </>
+                                    )}
                                 </h2>
                                 <div 
                                     className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]"
