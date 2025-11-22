@@ -438,7 +438,7 @@ export default function App() {
   const headerContent = (
     <>
        <div className="w-full bg-white">
-            <img src="https://metarh.com.br/wp-content/uploads/2025/11/banner_app.png" alt="MetaRH Banner" className="w-full h-auto block" style={{ minWidth: '320px' }} />
+            <img src="https://metarh.com.br/wp-content/uploads/2025/11/Header-SurveyMonkey.jpg" alt="MetaRH Banner" className="w-full h-auto block" style={{ minWidth: '320px' }} />
         </div>
 
         <div className="w-full bg-white pt-6 px-4 pb-6">

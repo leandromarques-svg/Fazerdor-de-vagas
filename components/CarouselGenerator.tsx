@@ -4,7 +4,7 @@ import { SelectyJobResponse, LibraryImage } from '../types';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import jsPDF from 'jspdf';
-import { Loader2, ChevronLeft, Download, RefreshCw, Image as ImageIcon, CheckCircle, X, Eye, Layers, Edit3, Type, Copy, Check, HeartHandshake, Sparkles } from 'lucide-react';
+import { Loader2, ChevronLeft, Download, RefreshCw, Image as ImageIcon, CheckCircle, X, Eye, Layers, Edit3, Type, Copy, Check, HeartHandshake, Sparkles, Move } from 'lucide-react';
 
 interface CarouselGeneratorProps {
     selectedJobs: SelectyJobResponse[];
@@ -90,9 +90,9 @@ const getTitleFontSize = (text: string) => {
 
 const getCategoryFontSize = (text: string) => {
       const len = text.length;
-      if (len > 35) return '18px';
-      if (len > 25) return '22px';
-      return '30px';
+      if (len > 35) return '17px';
+      if (len > 25) return '21px';
+      return '29px';
 }
 
 const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
@@ -104,7 +104,6 @@ interface SlideOverrides {
     contract?: string;
     modality?: string;
     tagline?: string;
-    companyType?: 'multinacional' | 'nacional' | 'custom';
     isAffirmative?: boolean;
     affirmativeType?: string;
 }
@@ -126,10 +125,11 @@ interface SlideProps {
         back: string | undefined;
     };
     scale?: number;
+    imagePosition?: { x: number, y: number };
 }
 
 // --- Single Slide Component ---
-const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
+const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1, imagePosition = { x: 50, y: 50 } }) => {
     const style = {
         width: `${CANVAS_WIDTH}px`,
         height: `${CANVAS_HEIGHT}px`,
@@ -167,13 +167,20 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
     const job = config.job!;
     const overrides = config.overrides || {};
 
+    // Helper to title case for display inside slide
+    const toTitleCase = (str: string) => {
+        return str.replace(
+            /\w\S*/g,
+            text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+        );
+    };
+
     const title = overrides.title || job.title.split(' - ')[0].trim();
     const tag1 = overrides.contract || (job.contract_type === 'CLT' ? 'CLT (Efetivo)' : (job.contract_type || 'CLT (Efetivo)'));
     const tag2 = overrides.modality || (job.remote ? 'Remoto' : 'Presencial');
     const location = overrides.location || (job.city ? `${job.city}-${job.state}` : 'Brasil');
-    const category = overrides.category || ((job.department && job.department !== 'Geral') ? job.department.toUpperCase() : 'SETOR ADMINISTRATIVO');
-    const tagline = overrides.tagline || 'TRABALHE EM UMA EMPRESA MULTINACIONAL';
-    const companyType = overrides.companyType || 'multinacional';
+    const category = overrides.category || ((job.department && job.department !== 'Geral') ? toTitleCase(job.department) : 'Setor Administrativo');
+    const tagline = overrides.tagline || 'Trabalhe onde seu talento ganha espaço';
     
     const isAffirmative = overrides.isAffirmative || false;
     const affirmativeType = overrides.affirmativeType || DIVERSITY_OPTIONS[0];
@@ -190,17 +197,21 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
                     <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{assets.logo && <img src={assets.logo} className="h-full w-auto object-contain opacity-90" crossOrigin="anonymous" />}</div>
                     <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
                         <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
-                            {companyType === 'custom' ? (
-                                <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
-                            ) : (
-                                <><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>
-                            )}
+                             <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
                         </h2>
-                        <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
+                        <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white capitalize text-[24px] truncate px-4" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div>
                     </div>
                 </div>
                 {/* 2. Photo Section (Left) */}
-                <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{safeJobImage && <img src={safeJobImage} className="w-full h-full object-cover" crossOrigin="anonymous" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {job.id}</span></div></div></div>
+                <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>
+                    {safeJobImage && <img 
+                        src={safeJobImage} 
+                        className="w-full h-full object-cover pointer-events-none select-none" 
+                        crossOrigin="anonymous"
+                        style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }}
+                    />}
+                    <div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {job.id}</span></div></div>
+                </div>
                 {/* 3. Diversity Title */}
                 <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
                 <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
@@ -235,7 +246,7 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
                         <div className="mt-[50px] w-full flex flex-col gap-4 items-start">
                             {/* Capsule Category: Multiline allowed, fixed max width */}
                             <div className="px-8 py-3 rounded-[30px] shadow-lg inline-flex items-center justify-center bg-[#F42C9F]" style={{ minWidth: '200px' }}>
-                                <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>{category}</span>
+                                <span className="font-sans font-bold text-white capitalize tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>{category}</span>
                             </div>
                         </div>
                     </div>
@@ -244,7 +255,13 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
                     <div className="absolute top-[145px] right-[135px] flex flex-col items-center" style={{ width: '448px' }}>
                         <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {job.id}</span>
                         <div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                            {safeJobImage && <img src={safeJobImage} alt="Foto da Vaga" className="w-full h-full object-cover block" crossOrigin="anonymous" />}
+                            {safeJobImage && <img 
+                                src={safeJobImage} 
+                                alt="Foto da Vaga" 
+                                className="w-full h-full object-cover block pointer-events-none select-none" 
+                                crossOrigin="anonymous" 
+                                style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }}
+                            />}
                         </div>
                     </div>
                 </div>
@@ -285,6 +302,10 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
     const [slides, setSlides] = useState<SlideConfig[]>([]);
     const [activeSlideIndex, setActiveSlideIndex] = useState(1);
     
+    // Dragging State (Per Slide)
+    const [slidePositions, setSlidePositions] = useState<Record<string, {x: number, y: number}>>({});
+    const [isDragging, setIsDragging] = useState(false);
+
     // Image Picker State
     const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
 
@@ -306,6 +327,14 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
         back: backUrl
     };
 
+    // Helper to title case for category init
+    const toTitleCase = (str: string) => {
+        return str.replace(
+            /\w\S*/g,
+            text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+        );
+    };
+
     // Initialize Slides
     useEffect(() => {
         if (selectedJobs.length > 0 && slides.length === 0) {
@@ -320,7 +349,10 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                     job,
                     image: randomImg,
                     id: `slide-job-${job.id}`,
-                    overrides: {}
+                    overrides: {
+                        category: job.department && job.department !== 'Geral' ? toTitleCase(job.department) : 'Setor Administrativo',
+                        tagline: 'Trabalhe onde seu talento ganha espaço'
+                    }
                 });
             });
             initialSlides.push({ type: 'back', id: 'slide-back' });
@@ -336,26 +368,16 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
         updatedSlides[activeSlideIndex] = { ...updatedSlides[activeSlideIndex], image: newImageUrl };
         setSlides(updatedSlides);
         setIsImagePickerOpen(false);
+        // Reset position
+        const activeId = updatedSlides[activeSlideIndex].id;
+        setSlidePositions(prev => ({ ...prev, [activeId]: { x: 50, y: 50 } }));
     };
 
     const handleOverrideChange = (field: keyof SlideOverrides, value: any) => {
         const updatedSlides = [...slides];
         const currentOverrides = updatedSlides[activeSlideIndex].overrides || {};
         
-        // Logic for Tagline Updates based on buttons
         let newOverrides = { ...currentOverrides, [field]: value };
-        
-        if (field === 'companyType') {
-            if (value === 'multinacional') {
-                newOverrides.tagline = 'TRABALHE EM UMA EMPRESA MULTINACIONAL';
-            } else if (value === 'nacional') {
-                newOverrides.tagline = 'TRABALHE EM UMA EMPRESA NACIONAL';
-            }
-            // If custom, we keep the existing tagline or let the user type
-        } else if (field === 'tagline') {
-            // If user types manually, switch to custom
-            newOverrides.companyType = 'custom';
-        }
 
         updatedSlides[activeSlideIndex] = {
             ...updatedSlides[activeSlideIndex],
@@ -368,6 +390,37 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
         navigator.clipboard.writeText(captions[selectedCaptionIdx]);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    // Drag Handlers for Preview
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!slides[activeSlideIndex] || slides[activeSlideIndex].type !== 'job') return;
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging) return;
+        
+        const activeSlide = slides[activeSlideIndex];
+        if (!activeSlide) return;
+
+        const currentPos = slidePositions[activeSlide.id] || { x: 50, y: 50 };
+        const sensitivity = 0.15;
+
+        const newPos = {
+            x: Math.max(0, Math.min(100, currentPos.x - (e.movementX * sensitivity))),
+            y: Math.max(0, Math.min(100, currentPos.y - (e.movementY * sensitivity)))
+        };
+
+        setSlidePositions(prev => ({
+            ...prev,
+            [activeSlide.id]: newPos
+        }));
     };
 
     const handleGenerate = async (type: 'zip' | 'pdf') => {
@@ -480,7 +533,13 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                 {/* Container Invisível para Renderização - Opacity 0 mas na tela */}
                 <div className="absolute top-0 left-0 pointer-events-none opacity-0" style={{ zIndex: -1 }}>
                     {slides.map(slide => (
-                        <Slide key={slide.id} config={{...slide, id: `gen-${slide.id}`}} assets={assets} scale={1} />
+                        <Slide 
+                            key={slide.id} 
+                            config={{...slide, id: `gen-${slide.id}`}} 
+                            assets={assets} 
+                            scale={1} 
+                            imagePosition={slidePositions[slide.id]}
+                        />
                     ))}
                 </div>
             </div>
@@ -489,7 +548,6 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
 
     const activeSlide = slides[activeSlideIndex];
     const activeOverrides = activeSlide?.overrides || {};
-    const currentCompanyType = activeOverrides.companyType || 'multinacional';
     
     // Preview Scale Calculation
     const PREVIEW_SCALE = 0.35;
@@ -585,17 +643,12 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
 
                             {/* Tagline */}
                             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Frase de Efeito / Tipo de Empresa</label>
-                                <div className="flex gap-2 mb-3">
-                                    <button onClick={() => handleOverrideChange('companyType', 'multinacional')} className={`flex-1 py-1.5 px-2 rounded-full text-[10px] font-bold border transition-colors ${currentCompanyType === 'multinacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>Multinacional</button>
-                                    <button onClick={() => handleOverrideChange('companyType', 'nacional')} className={`flex-1 py-1.5 px-2 rounded-full text-[10px] font-bold border transition-colors ${currentCompanyType === 'nacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>Nacional</button>
-                                </div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Frase de Efeito</label>
                                 <input 
                                     type="text" 
-                                    value={activeOverrides.tagline || 'TRABALHE EM UMA EMPRESA MULTINACIONAL'} 
+                                    value={activeOverrides.tagline || 'Trabalhe onde seu talento ganha espaço'} 
                                     onChange={(e) => handleOverrideChange('tagline', e.target.value)} 
                                     className="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-brand-500 bg-slate-50"
-                                    placeholder="Ex: TRABALHE EM UMA EMPRESA LÍDER"
                                 />
                             </div>
 
@@ -615,7 +668,7 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                                 ) : (
                                     <div>
                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Categoria (Pílula)</label>
-                                        <input type="text" value={activeOverrides.category || (activeSlide.job?.department && activeSlide.job.department !== 'Geral' ? activeSlide.job.department.toUpperCase() : 'SETOR ADMINISTRATIVO')} onChange={(e) => handleOverrideChange('category', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg text-sm font-bold shadow-sm" />
+                                        <input type="text" value={activeOverrides.category || (activeSlide.job?.department && activeSlide.job.department !== 'Geral' ? activeSlide.job.department : 'Setor Administrativo')} onChange={(e) => handleOverrideChange('category', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg text-sm font-bold shadow-sm" />
                                     </div>
                                 )}
 
@@ -652,8 +705,17 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
 
                 {/* COLUMN 3: PREVIEW (Right) */}
                 <div className="flex-1 bg-slate-100 flex flex-col overflow-hidden order-3 relative z-10">
-                     <div className="absolute inset-0 flex items-center justify-center p-6 bg-slate-200/50 overflow-hidden">
-                        <div className="relative shadow-2xl rounded-[20px] bg-white overflow-hidden shrink-0 transition-transform duration-300" style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}>
+                     <div className="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-500 flex items-center shadow-sm pointer-events-none">
+                         <Move className="w-3 h-3 mr-1" /> Arraste a foto para ajustar
+                     </div>
+                     <div 
+                        className="absolute inset-0 flex items-center justify-center p-6 bg-slate-200/50 overflow-hidden"
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                     >
+                        <div className={`relative shadow-2xl rounded-[20px] bg-white overflow-hidden shrink-0 transition-transform duration-300 ${activeSlide?.type === 'job' ? 'cursor-move' : ''}`} style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}>
                             {/* Interactive Layer */}
                             <div className="absolute inset-0 z-20 pointer-events-none">
                                 {activeSlide && activeSlide.type === 'job' && (
@@ -661,6 +723,7 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                                         <button 
                                             onClick={() => setIsImagePickerOpen(true)}
                                             className="bg-white text-brand-700 px-4 py-2 rounded-full shadow-lg font-bold text-xs border border-brand-200 hover:bg-brand-50 flex items-center gap-2 transition-transform hover:scale-105 group"
+                                            onMouseDown={(e) => e.stopPropagation()} // Prevent drag start on button click
                                         >
                                             <ImageIcon className="w-3 h-3 group-hover:text-brand-600" /> Trocar Foto
                                         </button>
@@ -669,8 +732,13 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                             </div>
                             {/* Scaled Slide Render */}
                             {activeSlide && (
-                                <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left', width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}>
-                                    <Slide config={activeSlide} assets={assets} scale={1} />
+                                <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left', width: CANVAS_WIDTH, height: CANVAS_HEIGHT, pointerEvents: 'none' }}>
+                                    <Slide 
+                                        config={activeSlide} 
+                                        assets={assets} 
+                                        scale={1} 
+                                        imagePosition={slidePositions[activeSlide.id]}
+                                    />
                                 </div>
                             )}
                         </div>

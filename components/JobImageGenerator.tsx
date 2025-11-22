@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SelectyJobResponse, LibraryImage, ImageTag } from '../types';
 import { toPng, toBlob } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2, Share2, ImageIcon } from 'lucide-react';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2, Share2, ImageIcon, Move } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
@@ -27,7 +27,7 @@ const CAPTION_TEMPLATES = [
     (job: SelectyJobResponse, link: string) => `Vaga aberta: ${job.title} 🎯\n\nEstamos contratando profissionais para compor o time de um de nossos parceiros.\n\n📍 ${job.city || 'Local a definir'}\n📝 ${job.contract_type || 'Contrato'}\n\nLink para aplicação nos comentários e abaixo:\n🔗 ${link}\n\n${getTags(job)}`,
     (job: SelectyJobResponse, link: string) => `Você é um ${job.title} em busca de novos desafios? 🤔\n\nEstamos com uma posição aberta que pode ser o próximo passo na sua carreira! \n\nBuscamos alguém proativo para atuar em ${job.city || 'nossa sede'}.\n\nConfira os detalhes completos e aplique aqui:\n👉 ${link}\n\nMarque um amigo que manda bem nessa área! 👇\n${getTags(job)}`,
     (job: SelectyJobResponse, link: string) => `🚨 PROCESSO SELETIVO ABERTO\n\nVaga: ${job.title}\nRegime: ${job.contract_type || 'CLT'}\nLocal: ${job.remote ? 'Remoto 🏠' : `${job.city} 🏢`}\n\nNão perca tempo! As inscrições estão abertas e queremos fechar essa vaga com alguém incrível (você?).\n\nAcesse o link e cadastre seu currículo:\n📲 ${link}\n\n${getTags(job)}`,
-    (job: SelectyJobResponse, link: string) => `A METARH conecta você às melhores oportunidades! 🌐\n\nNova posição disponível para: ${job.title}.\n\nFaça parte de empresas que valorizam o capital humano.\n📍 Atuação: ${job.city || 'Brasil'}\n\nDetalhes e inscrição:\n${link}\n\n${getTags(job)}`,
+    (job: SelectyJobResponse, link: string) => `A METARH conecta você às melhores oportunidades! 🌐\n\nNova posição disponível para: ${job.title}.\n\nFaça parte de empresas que valorizam o capital humano.\n\n📍 Atuação: ${job.city || 'Brasil'}\n\nDetalhes e inscrição:\n${link}\n\n${getTags(job)}`,
     (job: SelectyJobResponse, link: string) => `Networking é tudo! 🤝\n\nEstamos com vaga aberta para ${job.title}.\n\nVocê é essa pessoa ou conhece alguém com esse perfil? Ajude essa oportunidade chegar no talento certo marcando nos comentários.\n\n🔗 Link da vaga: ${link}\n\n${getTags(job)}`,
     (job: SelectyJobResponse, link: string) => `OPORTUNIDADE: ${job.title} 💼\n\n📌 Detalhes da vaga:\n▪️ Setor: ${job.department || 'Geral'}\n▪️ Modelo: ${job.remote ? 'Remoto' : 'Presencial'}\n▪️ Contrato: ${job.contract_type || 'A combinar'}\n▪️ Cidade: ${job.city || 'Não informado'}\n\nBuscamos profissionais engajados e prontos para somar.\n\nInscreva-se: ${link}\n\n${getTags(job)}`,
     (job: SelectyJobResponse, link: string) => `VAGA NO RADAR! 🎯\n\nOportunidade para ${job.title} em ${job.city || 'aberto'}.\n\nSe você busca uma recolocação ou um novo desafio profissional, essa é a hora. Processo seletivo ágil conduzido pela METARH.\n\nAcesse e candidate-se:\n${link}\n\n${getTags(job)}`,
@@ -175,9 +175,8 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [tag2, setTag2] = useState(job.remote ? 'Remoto' : 'Presencial');
   const [location, setLocation] = useState(job.city ? `${job.city}-${job.state}` : 'Brasil');
   const [jobId, setJobId] = useState(String(job.id));
-  const [category, setCategory] = useState('SETOR ADMINISTRATIVO'); 
-  const [companyType, setCompanyType] = useState<'multinacional' | 'nacional' | 'custom'>('multinacional');
-  const [tagline, setTagline] = useState('TRABALHE EM UMA EMPRESA MULTINACIONAL');
+  const [category, setCategory] = useState('Setor Administrativo'); 
+  const [tagline, setTagline] = useState('Trabalhe onde seu talento ganha espaço');
   const [jobImage, setJobImage] = useState(libraryImages.find(img => img.tags && img.tags.length > 0)?.url || "");
   const [footerUrl, setFooterUrl] = useState('metarh.com.br/vagas-metarh');
   
@@ -190,21 +189,59 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
 
   const [activeTags, setActiveTags] = useState<ImageTag[]>([]);
 
+  // Image Dragging State
+  const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
+  const [isDragging, setIsDragging] = useState(false);
+
   const bgImageBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/Fundo_Vagas.jpg");
   const logoBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/metarh-bola-branca.png");
   const jobImageBase64 = useBase64Image(jobImage);
 
+  // Reset position when image changes
   useEffect(() => {
-    if (job.department && job.department !== 'Geral') setCategory(job.department.toUpperCase());
+      setImagePosition({ x: 50, y: 50 });
+  }, [jobImage]);
+
+  // Helper to title case for display
+  const toTitleCase = (str: string) => {
+      return str.replace(
+          /\w\S*/g,
+          text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+      );
+  };
+
+  useEffect(() => {
+    if (job.department && job.department !== 'Geral') {
+        setCategory(toTitleCase(job.department));
+    }
     generateCaption(0);
   }, [job]);
 
   useEffect(() => { generateCaption(0); }, [isAffirmative, affirmativeType]);
 
-  useEffect(() => {
-    if (companyType === 'multinacional') setTagline('TRABALHE EM UMA EMPRESA MULTINACIONAL');
-    else if (companyType === 'nacional') setTagline('TRABALHE EM UMA EMPRESA NACIONAL');
-  }, [companyType]);
+  // Drag Handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+  };
+
+  const handleMouseUp = () => {
+      setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+      if (!isDragging) return;
+      
+      // Sensitivity factor: Adjust how fast the image moves relative to mouse movement
+      // Moving mouse RIGHT (+X) -> Image should move RIGHT (Increase X%)
+      // Moving mouse DOWN (+Y) -> Image should move DOWN (Increase Y%)
+      const sensitivity = 0.15; 
+
+      setImagePosition(prev => ({
+          x: Math.max(0, Math.min(100, prev.x - (e.movementX * sensitivity))),
+          y: Math.max(0, Math.min(100, prev.y - (e.movementY * sensitivity)))
+      }));
+  };
 
   const generateCaption = (index: number) => {
       const link = job.url_apply || footerUrl;
@@ -310,9 +347,9 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   
   const getCategoryFontSize = (text: string) => {
       const len = text.length;
-      if (len > 35) return '18px';
-      if (len > 25) return '22px';
-      return '30px';
+      if (len > 35) return '17px'; // Reduced by 1 point roughly
+      if (len > 25) return '21px'; // Reduced
+      return '29px'; // Reduced
   }
   
   const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
@@ -345,7 +382,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center"><Monitor className="w-6 h-6 mr-2 text-brand-600" />Editor de Post</h2>
             <div className="space-y-6 pr-2">
                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título da Vaga</label><textarea value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-4 border border-slate-200 rounded-3xl text-sm font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none" rows={2}/></div>
-                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100"><label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center"><Type className="w-3 h-3 mr-1" /> Frase de Efeito</label><div className="flex gap-2 mb-3"><button onClick={() => setCompanyType('multinacional')} className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'multinacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}>Multinacional</button><button onClick={() => setCompanyType('nacional')} className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'nacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}>Nacional</button></div><input type="text" value={tagline} onChange={(e) => { setCompanyType('custom'); setTagline(e.target.value); }} className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"/></div>
+                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100"><label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center"><Type className="w-3 h-3 mr-1" /> Frase de Efeito</label><input type="text" value={tagline} onChange={(e) => { setTagline(e.target.value); }} className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"/></div>
                 <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula)</label><input type="text" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 border border-slate-200 rounded-full text-sm font-sans font-bold"/></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código</label><div className="relative"><Hash className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" /><input type="text" value={jobId} onChange={(e) => setJobId(e.target.value)} className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm"/></div></div></div>
                 <div className={`p-4 rounded-3xl border transition-colors duration-300 ${isAffirmative ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-100'}`}><div className="flex items-center justify-between mb-2"><label className={`block text-xs font-bold uppercase flex items-center ${isAffirmative ? 'text-brand-600' : 'text-slate-500'}`}><HeartHandshake className="w-3 h-3 mr-1" /> Vaga Afirmativa?</label><div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={isAffirmative} onChange={(e) => setIsAffirmative(e.target.checked)} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-brand-500"/><label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200 ${isAffirmative ? 'bg-brand-500' : 'bg-slate-300'}`}></label></div></div>{isAffirmative && (<div className="animate-in fade-in slide-in-from-top-2 duration-200"><GeneratorSelect label="Público da Vaga" value={affirmativeType} options={DIVERSITY_OPTIONS} onChange={setAffirmativeType}/></div>)}</div>
                 <div className="grid grid-cols-3 gap-2"><div className="col-span-1"><GeneratorSelect label="Contrato" value={tag1} options={CONTRACT_OPTIONS} onChange={setTag1}/></div><div className="col-span-1"><GeneratorSelect label="Modalidade" value={tag2} options={MODALITY_OPTIONS} onChange={setTag2}/></div><div className="col-span-1"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Local</label><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-full text-xs"/></div></div>
@@ -406,6 +443,10 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
       {/* Preview Area */}
       <div className="w-full lg:w-2/3 flex flex-col items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-2 lg:p-4 order-1 lg:order-2 relative z-20 overflow-hidden min-h-[450px] lg:min-h-screen lg:fixed lg:right-0 lg:top-0 lg:h-screen">
         
+        <div className="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-500 flex items-center shadow-sm pointer-events-none">
+            <Move className="w-3 h-3 mr-1" /> Arraste a foto para ajustar
+        </div>
+
         {/* The Preview */}
         <div className="w-full h-full flex items-center justify-center">
             <div className="transform-gpu transition-transform duration-300 scale-[0.26] sm:scale-[0.32] md:scale-[0.4] lg:scale-[0.45] xl:scale-[0.55]" style={{ transformOrigin: 'center center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
@@ -417,15 +458,31 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                             <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
                                 <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}</div>
                                 <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
-                                    <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">{companyType === 'custom' ? (<span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>) : (<><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>)}</h2>
-                                    <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
+                                    <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
+                                        <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
+                                    </h2>
+                                    <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white capitalize text-[24px] truncate px-4" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div>
                                 </div>
                             </div>
                             {/* 2. Photo Section (Left) */}
-                            <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div></div>
+                            <div 
+                                className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200 group cursor-move" 
+                                style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                            >
+                                {jobImageBase64 && <img 
+                                    src={jobImageBase64} 
+                                    className="w-full h-full object-cover pointer-events-none select-none" 
+                                    style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }} 
+                                />}
+                                <div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div>
+                            </div>
                             {/* 3. Diversity Title */}
-                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
-                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
+                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px`, pointerEvents: 'none' }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
+                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px`, pointerEvents: 'none' }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
                             {/* 4. Body Content */}
                             <div className="absolute z-10 flex flex-col items-center" style={{ top: `${HEADER_HEIGHT}px`, bottom: `${FOOTER_HEIGHT}px`, left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, right: 0, justifyContent: 'center' }}>
                                 <h2 className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]" style={{ fontSize: getTitleFontSize(title) }}>{title}</h2>
@@ -454,7 +511,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                         <div className="mt-[50px] w-full flex flex-col gap-4 items-start">
                                             {/* Cápsula da Categoria: Permite quebra de linha e tem largura fixa máxima */}
                                             <div className="px-8 py-3 rounded-[30px] shadow-lg inline-flex items-center justify-center bg-[#F42C9F]" style={{ minWidth: '200px' }}>
-                                                <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>
+                                                <span className="font-sans font-bold text-white capitalize tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>
                                                     {category}
                                                 </span>
                                             </div>
@@ -464,8 +521,20 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                     {/* Lado Direito: Foto + Código (Posicionamento Absoluto FIXO) */}
                                     <div className="absolute top-[145px] right-[135px] flex flex-col items-center" style={{ width: '448px' }}>
                                         <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span>
-                                        <div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                                            {jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}
+                                        <div 
+                                            className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0 cursor-move" 
+                                            style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+                                            onMouseDown={handleMouseDown}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseUp={handleMouseUp}
+                                            onMouseLeave={handleMouseUp}
+                                        >
+                                            {jobImageBase64 && <img 
+                                                src={jobImageBase64} 
+                                                alt="Foto da Vaga" 
+                                                className="w-full h-full object-cover block pointer-events-none select-none" 
+                                                style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }}
+                                            />}
                                         </div>
                                     </div>
                                 </div>
