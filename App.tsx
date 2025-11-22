@@ -9,11 +9,11 @@ import { JobImageGenerator } from './components/JobImageGenerator';
 import { CarouselGenerator } from './components/CarouselGenerator';
 import { Filters } from './components/Filters';
 import { StatsModal } from './components/StatsModal';
-import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus, Wand2, Palette, Clock, HeartHandshake, Sparkles, Image as ImageIcon, Upload, Trash2, X, CheckCircle, Settings, Database, FileCode, Tag, Layers, Download, TrendingUp } from 'lucide-react';
+import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus, Wand2, Palette, Clock, HeartHandshake, Sparkles, Image as ImageIcon, Upload, Trash2, X, CheckCircle, Settings, Database, FileCode, Tag, Layers, Download, TrendingUp, CloudUpload } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
 const ITEMS_PER_PAGE = 9;
-const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos'];
+const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos', '+pessoas'];
 
 // Helper: Converte Base64 para Blob
 const base64ToBlob = (base64: string): Blob => {
@@ -96,6 +96,7 @@ export default function App() {
   
   // Upload States
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [isUploadingToCloud, setIsUploadingToCloud] = useState(false);
   const [tempUploadImages, setTempUploadImages] = useState<string[]>([]);
@@ -294,22 +295,54 @@ export default function App() {
 
   const handleOpenEditTags = (img: LibraryImage) => { setEditingImage(img); setEditingTags(img.tags); };
   const toggleEditingTag = (tag: ImageTag) => { setEditingTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]); };
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
+  
+  // --- Drag & Drop and File Processing Logic ---
+  const processFiles = async (files: FileList | null) => {
       if (!files || files.length === 0) return;
       setIsProcessingImages(true);
       setNewImageTags([]);
       const processed: string[] = [];
       try {
           for (let i = 0; i < files.length; i++) {
+              const file = files[i];
+              if (!file.type.startsWith('image/')) continue;
+
               setProcessingStatus(`Processando imagem ${i + 1} de ${files.length}...`);
               await new Promise(resolve => setTimeout(resolve, 10)); 
-              const base64 = await compressImage(files[i]);
+              const base64 = await compressImage(file);
               processed.push(base64);
           }
-          setTempUploadImages(processed);
+          if (processed.length > 0) {
+              setTempUploadImages(processed);
+          }
       } catch (e) { alert("Erro ao processar as imagens."); } finally { setIsProcessingImages(false); setProcessingStatus(''); }
   };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+      processFiles(event.target.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isProcessingImages) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      if (!isProcessingImages) {
+          processFiles(e.dataTransfer.files);
+      }
+  };
+
   const confirmUpload = async () => { await handleAddImage(tempUploadImages, newImageTags); setTempUploadImages([]); if (fileInputRef.current) fileInputRef.current.value = ''; };
   const toggleNewImageTag = (tag: ImageTag) => { setNewImageTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]); };
 
@@ -489,11 +522,47 @@ export default function App() {
                                 </span>
                             </div>
                         </div>
-                        <label className={`cursor-pointer bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center transition-colors shadow-sm ${isProcessingImages ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                            {isProcessingImages ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                            {isProcessingImages ? 'Processando...' : 'Adicionar Imagens'}
-                            <input type="file" multiple accept="image/*" ref={fileInputRef} className="hidden" disabled={isProcessingImages} onChange={handleFileSelect} />
-                        </label>
+                    </div>
+
+                    {/* Drop Zone */}
+                    <div 
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`mb-6 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-8 text-center cursor-pointer
+                            ${isDragging 
+                                ? 'border-brand-500 bg-brand-50 scale-[1.01]' 
+                                : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-slate-50'
+                            }
+                        `}
+                    >
+                         <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                             <div className={`p-3 rounded-full mb-3 transition-colors ${isDragging ? 'bg-brand-200 text-brand-700' : 'bg-slate-100 text-slate-400'}`}>
+                                <CloudUpload className="w-8 h-8" />
+                             </div>
+                             {isProcessingImages ? (
+                                 <div className="flex items-center gap-2 text-brand-600 font-bold">
+                                     <Loader2 className="w-5 h-5 animate-spin" />
+                                     Processando...
+                                 </div>
+                             ) : (
+                                 <>
+                                    <h4 className="text-lg font-bold text-slate-700 mb-1">
+                                        {isDragging ? 'Solte as imagens aqui!' : 'Arraste e solte ou clique para adicionar'}
+                                    </h4>
+                                    <p className="text-sm text-slate-500">Suporta JPG e PNG. Múltiplas imagens permitidas.</p>
+                                 </>
+                             )}
+                             <input 
+                                type="file" 
+                                multiple 
+                                accept="image/*" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                disabled={isProcessingImages} 
+                                onChange={handleFileSelect} 
+                            />
+                         </label>
                     </div>
                     
                     {processingStatus && (<div className="mb-4 text-center"><span className="inline-flex items-center px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-bold animate-pulse">{processingStatus}</span></div>)}
@@ -513,7 +582,7 @@ export default function App() {
                     )}
 
                     {tempUploadImages.length > 0 && (
-                        <div className="bg-white p-4 rounded-2xl border border-brand-200 mb-6 shadow-sm">
+                        <div className="bg-white p-4 rounded-2xl border border-brand-200 mb-6 shadow-sm animate-in slide-in-from-top-2">
                             <div className="flex items-start gap-4">
                                 <div className="flex-1">
                                     <h4 className="font-bold text-brand-800 mb-1">{tempUploadImages.length} imagem(ns) pronta(s) para salvar</h4>

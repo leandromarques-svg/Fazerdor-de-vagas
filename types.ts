@@ -28,7 +28,7 @@ export interface JobFilterState {
   specificDate: string; // YYYY-MM-DD format
 }
 
-export type ImageTag = 'Homem' | 'Mulher' | 'Negros' | '50+' | 'LGBTQIAPN+' | 'PCD' | 'Indígenas' | 'Jovem' | 'Amarelos';
+export type ImageTag = 'Homem' | 'Mulher' | 'Negros' | '50+' | 'LGBTQIAPN+' | 'PCD' | 'Indígenas' | 'Jovem' | 'Amarelos' | '+pessoas';
 
 export interface LibraryImage {
     id: string;

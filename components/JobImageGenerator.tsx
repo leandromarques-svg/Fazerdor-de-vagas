@@ -11,7 +11,7 @@ interface JobImageGeneratorProps {
   libraryImages: LibraryImage[];
 }
 
-const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos'];
+const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos', '+pessoas'];
 
 // Helper para hashtags padrão
 const getTags = (job: SelectyJobResponse) => {
