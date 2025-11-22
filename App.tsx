@@ -28,14 +28,17 @@ const base64ToBlob = (base64: string): Blob => {
     return new Blob([uInt8Array], { type: contentType });
 };
 
-// Helper para compressão de imagem
+// Helper para compressão de imagem robusta
 const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+        // Leitor de arquivo
         const reader = new FileReader();
         reader.readAsDataURL(file);
+        
         reader.onload = (event) => {
             const img = new Image();
             img.src = event.target?.result as string;
+            
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const MAX_WIDTH = 900;
@@ -44,6 +47,7 @@ const compressImage = (file: File): Promise<string> => {
                 let width = img.width;
                 let height = img.height;
 
+                // Lógica de redimensionamento mantendo proporção
                 if (width > height) {
                     if (width > MAX_WIDTH) {
                         height = Math.round(height * (MAX_WIDTH / width));
@@ -64,15 +68,31 @@ const compressImage = (file: File): Promise<string> => {
                 canvas.height = height;
                 
                 const ctx = canvas.getContext('2d');
+                
+                // Se não conseguir contexto 2D (erro raro), retorna original
                 if (!ctx) {
                     resolve(event.target?.result as string);
                     return;
                 }
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+
+                try {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    // Qualidade 0.8 para bom balanço
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                } catch (e) {
+                    // Fallback: Se houver erro no canvas (ex: taint), retorna original
+                    console.warn("Erro na compressão via canvas, usando original:", e);
+                    resolve(event.target?.result as string);
+                }
             };
-            img.onerror = (err) => reject(err);
+
+            img.onerror = (err) => {
+                console.error("Erro ao carregar imagem para compressão:", err);
+                // Se a imagem estiver corrompida para o objeto Image, rejeitamos
+                reject(new Error("Arquivo de imagem inválido ou corrompido."));
+            };
         };
+        
         reader.onerror = (err) => reject(err);
     });
 };
@@ -169,7 +189,6 @@ export default function App() {
       if (isSupabaseConfigured && supabase) {
           try {
               // Simple increment via update if we have the value, purely optimistic for this demo
-              // In production, use an RPC function: await supabase.rpc('increment_stats', { row_id: 1, amount: amount })
               const { error } = await supabase
                 .from('app_statistics')
                 .update({ total_generated: newCount })
@@ -297,19 +316,30 @@ export default function App() {
   const toggleEditingTag = (tag: ImageTag) => { setEditingTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]); };
   
   // --- Drag & Drop and File Processing Logic ---
-  const processFiles = async (files: FileList | null) => {
-      if (!files || files.length === 0) return;
+  const processFiles = async (fileList: FileList | null) => {
+      if (!fileList || fileList.length === 0) return;
+      
       setIsProcessingImages(true);
-      setNewImageTags([]);
+      // Convert FileList to Array for safer iteration
+      const files = Array.from(fileList);
       const processed: string[] = [];
       let errorCount = 0;
 
       for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          if (!file.type.startsWith('image/')) continue;
+          
+          // Robust check for image type (MIME or Extension)
+          const isMimeImage = file.type.startsWith('image/');
+          const hasImageExtension = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name);
+          
+          if (!isMimeImage && !hasImageExtension) {
+              console.warn(`Ignorando arquivo não-imagem: ${file.name} (${file.type})`);
+              continue;
+          }
 
-          setProcessingStatus(`Processando imagem ${i + 1} de ${files.length}...`);
+          setProcessingStatus(`Processando ${i + 1}/${files.length}: ${file.name}`);
           try {
+            // Small delay to ensure UI updates
             await new Promise(resolve => setTimeout(resolve, 10)); 
             const base64 = await compressImage(file);
             processed.push(base64);
@@ -320,13 +350,24 @@ export default function App() {
       }
       
       if (processed.length > 0) {
-          setTempUploadImages(processed);
-      } else if (errorCount > 0) {
-          alert("Algumas imagens não puderam ser processadas. Tente usar arquivos JPG ou PNG.");
+          // Append to existing temp images instead of replacing, allowing multiple drops
+          setTempUploadImages(prev => [...prev, ...processed]);
+      }
+      
+      if (errorCount > 0) {
+           setTimeout(() => {
+             alert(`Atenção: ${errorCount} imagem(ns) falharam ao processar. Verifique se os arquivos são válidos.`);
+          }, 100);
+      } else if (processed.length === 0 && files.length > 0) {
+          setTimeout(() => {
+             alert("Nenhuma imagem válida encontrada. Tente usar arquivos JPG ou PNG.");
+          }, 100);
       }
 
       setIsProcessingImages(false); 
       setProcessingStatus('');
+      // Reset file input so same file can be selected again if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
