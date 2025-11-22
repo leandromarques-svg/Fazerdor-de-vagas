@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SelectyJobResponse, LibraryImage, ImageTag } from '../types';
-import { toPng } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2 } from 'lucide-react';
+import { toPng, toBlob } from 'html-to-image';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2, Share2, ClipboardCopy } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
@@ -11,7 +11,7 @@ interface JobImageGeneratorProps {
   libraryImages: LibraryImage[];
 }
 
-const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem'];
+const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos'];
 
 // Helper para hashtags padrão
 const getTags = (job: SelectyJobResponse) => {
@@ -71,6 +71,11 @@ const AFFIRMATIVE_CAPTIONS: Record<string, Array<(job: SelectyJobResponse, link:
         (job, link) => `🚀 DECOLANDO NA CARREIRA\n\nVaga para ${job.title} com foco em jovens talentos.\n\nAcreditamos no potencial da juventude para inovar. Se você quer crescer profissionalmente, essa chance é sua.\n\n📍 ${job.city || 'Brasil'}\n\n👉 Candidate-se: ${link}\n\n#OportunidadeJovem #Carreira #MetaRH ${getTags(job)}`,
         (job, link) => `FUTURO É AGORA 🌟\n\nEstamos contratando ${job.title}.\n\nBuscamos jovens dinâmicos e criativos para integrar nosso time. Não precisa de experiência, só de vontade de fazer acontecer!\n\n🔗 Link: ${link}\n\n#Juventude #Emprego #MetaRH ${getTags(job)}`
     ],
+    'Amarelos': [
+        (job, link) => `🌏 VAGA AFIRMATIVA PARA AMARELOS\n\nEstamos com vaga aberta para ${job.title} focada em talentos amarelos (asiáticos-brasileiros).\n\nBuscamos promover a pluralidade étnica e cultural em nosso time. Venha somar!\n\n🔗 Candidate-se: ${link}\n\n#VagaAfirmativa #Diversidade #MetaRH ${getTags(job)}`,
+        (job, link) => `✨ DIVERSIDADE É RIQUEZA\n\nOportunidade para ${job.title} (Afirmativa para Amarelos).\n\nSe você busca um ambiente que respeita sua identidade e valoriza seu potencial, seu lugar é aqui.\n\n👉 Inscreva-se: ${link}\n\n#Amarelos #Inclusão #MetaRH ${getTags(job)}`,
+        (job, link) => `VEM FAZER PARTE! 🚀\n\nEstamos contratando ${job.title} - Vaga Afirmativa para Pessoas Amarelas.\n\nConstruímos resultados melhores com times diversos. Junte-se a nós!\n\n🔗 Link: ${link}\n\n#Carreira #VagaAfirmativa #MetaRH ${getTags(job)}`
+    ],
     'Afirmativa (Geral)': [
         (job, link) => `🤝 VAGA AFIRMATIVA\n\nEstamos com oportunidade para ${job.title} focada em aumentar a diversidade do nosso time.\n\nSe você faz parte de grupos sub-representados, queremos conhecer seu talento!\n\n🔗 Candidate-se: ${link}\n\n#DiversidadeeInclusão #VagaAfirmativa #MetaRH ${getTags(job)}`,
         (job, link) => `🌟 DIVERSIDADE IMPORTA\n\nBuscamos ${job.title} para somar ao nosso time (Vaga Afirmativa).\n\nValorizamos diferentes perspectivas e vivências. Venha crescer com a gente!\n\n👉 Inscreva-se: ${link}\n\n#Inclusão #Oportunidade #MetaRH ${getTags(job)}`,
@@ -101,7 +106,7 @@ const COLORS = {
 
 const CONTRACT_OPTIONS = ['CLT (Efetivo)', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
 const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
-const DIVERSITY_OPTIONS = ['Mulheres', 'Pessoas Negras', 'Pessoas com Deficiência', 'LGBTQIAPN+', '50+', 'Pessoas Indígenas', 'Jovem', 'Afirmativa (Geral)'];
+const DIVERSITY_OPTIONS = ['Mulheres', 'Pessoas Negras', 'Pessoas com Deficiência', 'LGBTQIAPN+', '50+', 'Pessoas Indígenas', 'Jovem', 'Amarelos', 'Afirmativa (Geral)'];
 
 const useBase64Image = (url: string | null) => {
   const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
@@ -162,6 +167,8 @@ const GeneratorSelect: React.FC<GeneratorSelectProps> = ({ label, value, options
 export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClose, onSuccess, libraryImages }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isCopyingImage, setIsCopyingImage] = useState(false);
 
   const initialTitle = job.title.split(' - ')[0].trim();
   const [title, setTitle] = useState(initialTitle);
@@ -172,7 +179,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [category, setCategory] = useState('SETOR ADMINISTRATIVO'); 
   const [companyType, setCompanyType] = useState<'multinacional' | 'nacional' | 'custom'>('multinacional');
   const [tagline, setTagline] = useState('TRABALHE EM UMA EMPRESA MULTINACIONAL');
-  const [jobImage, setJobImage] = useState(libraryImages[0]?.url || "");
+  const [jobImage, setJobImage] = useState(libraryImages.find(img => img.tags && img.tags.length > 0)?.url || "");
   const [footerUrl, setFooterUrl] = useState('metarh.com.br/vagas-metarh');
   
   const [isAffirmative, setIsAffirmative] = useState(false);
@@ -219,6 +226,13 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const handleNextCaption = () => generateCaption(currentCaptionIndex + 1);
   const handleCopyCaption = () => { navigator.clipboard.writeText(captionText); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
+  const generateBlob = async () => {
+    if (cardRef.current === null) return null;
+    return await toBlob(cardRef.current, { 
+        cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
+    });
+  };
+
   const handleDownload = async () => {
     if (cardRef.current === null) return;
     setIsGenerating(true);
@@ -236,9 +250,66 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     finally { setIsGenerating(false); }
   };
 
+  const handleShare = async () => {
+    if (cardRef.current === null) return;
+    setIsSharing(true);
+    try {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const blob = await generateBlob();
+        if (!blob) throw new Error("Erro ao gerar arquivo de imagem");
+
+        const file = new File([blob], `${jobId}-vaga-metarh.png`, { type: 'image/png' });
+
+        const shareData = {
+            files: [file],
+            title: `Vaga: ${title}`,
+            text: captionText
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            if (onSuccess) onSuccess();
+        } else {
+            alert("O compartilhamento direto não é suportado neste dispositivo/navegador. A imagem será baixada.");
+            handleDownload();
+        }
+    } catch (err: any) {
+        if (err.name !== 'AbortError') {
+            console.error('Erro ao compartilhar:', err);
+            alert('Erro ao tentar compartilhar. Tente baixar a imagem.');
+        }
+    } finally {
+        setIsSharing(false);
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    if (cardRef.current === null) return;
+    setIsCopyingImage(true);
+    try {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const blob = await generateBlob();
+        if (!blob) throw new Error("Erro ao gerar arquivo");
+
+        await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+        ]);
+        alert("Imagem copiada! Agora basta colar (Ctrl+V) no LinkedIn, WhatsApp ou Instagram Web.");
+        if (onSuccess) onSuccess();
+    } catch (err) {
+        console.error("Erro ao copiar imagem:", err);
+        alert("Não foi possível copiar a imagem diretamente. Use o botão de download.");
+    } finally {
+        setIsCopyingImage(false);
+    }
+  };
+
   const toggleTag = (tag: ImageTag) => setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
   const filteredImages = libraryImages.filter(img => {
+      // Regra obrigatória: Precisa ter pelo menos uma tag para aparecer aqui
+      if (!img.tags || img.tags.length === 0) return false;
+
       if (activeTags.length === 0) return true;
       // Logic: Intersection (AND)
       return activeTags.every(tag => img.tags.includes(tag));
@@ -280,6 +351,9 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; 
   const totalCaptions = isAffirmative ? (AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)']).length : CAPTION_TEMPLATES.length;
 
+  // Detecta se é dispositivo móvel para mostrar botão de Share
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
       
@@ -315,7 +389,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                              </div>
                          ))}
                     </div>
-                     {filteredImages.length === 0 && (<div className="text-center py-4 text-slate-400 text-xs">Nenhuma imagem encontrada para estes filtros.</div>)}
+                     {filteredImages.length === 0 && (<div className="text-center py-4 text-slate-400 text-xs">Nenhuma imagem categorizada disponível para estes filtros. <br/> Adicione tags no painel principal.</div>)}
                 </div>
 
                 <div className="bg-brand-50 rounded-3xl p-5 border border-brand-100 mt-4">
@@ -325,9 +399,29 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                 </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 gap-3">
-                <button onClick={onClose} className="py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-full hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"><ChevronLeft className="w-5 h-5" />Voltar</button>
-                <button onClick={handleDownload} disabled={isGenerating || !isReady} className="py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">{isGenerating ? (<><Loader2 className="w-5 h-5 animate-spin" />Gerando...</>) : !isReady ? (<><Loader2 className="w-5 h-5 animate-spin" />Carregando...</>) : (<><Download className="w-5 h-5" />Baixar Imagem</>)}</button>
+            <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-3">
+                {/* Mobile / Share Natively */}
+                <button onClick={handleShare} disabled={isSharing || !isReady} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                    {isSharing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
+                    {isSharing ? 'Preparando...' : 'Compartilhar no App'}
+                </button>
+                
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-full hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                        <ChevronLeft className="w-4 h-4" /> Voltar
+                    </button>
+                    
+                    {/* Desktop Copy */}
+                    <button onClick={handleCopyToClipboard} disabled={isCopyingImage || !isReady} className="flex-1 py-3 bg-white border border-brand-200 text-brand-700 font-bold rounded-full hover:bg-brand-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                        {isCopyingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCopy className="w-4 h-4" />}
+                        Copiar Imagem
+                    </button>
+
+                    <button onClick={handleDownload} disabled={isGenerating || !isReady} className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full flex items-center justify-center gap-2 disabled:opacity-70">
+                        {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        Baixar
+                    </button>
+                </div>
             </div>
         </div>
       </div>

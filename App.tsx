@@ -11,7 +11,7 @@ import { Loader2, Briefcase, CircleAlert, RefreshCw, Plus, Wand2, Palette, Clock
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 
 const ITEMS_PER_PAGE = 9;
-const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem'];
+const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem', 'Amarelos'];
 
 // Helper: Converte Base64 para Blob (necessário para upload no Supabase)
 const base64ToBlob = (base64: string): Blob => {
@@ -96,7 +96,10 @@ export default function App() {
   const [customImages, setCustomImages] = useState<LibraryImage[]>([]);
   const [showImageAdmin, setShowImageAdmin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Upload States
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   const [isUploadingToCloud, setIsUploadingToCloud] = useState(false);
   const [tempUploadImages, setTempUploadImages] = useState<string[]>([]);
   const [newImageTags, setNewImageTags] = useState<ImageTag[]>([]);
@@ -185,63 +188,84 @@ export default function App() {
   const handleAddImage = async (base64Images: string[], tags: ImageTag[]) => {
       if (isSupabaseConfigured && supabase) {
           setIsUploadingToCloud(true);
+          let successCount = 0;
+          let failCount = 0;
+          const newEntries: LibraryImage[] = [];
+
           try {
-            const newEntries: LibraryImage[] = [];
-
-            for (const base64 of base64Images) {
-                const blob = base64ToBlob(base64);
-                const fileName = `upload-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+            // Upload um por um para garantir estabilidade, mas não para o loop se um falhar
+            for (let i = 0; i < base64Images.length; i++) {
+                const base64 = base64Images[i];
+                setProcessingStatus(`Enviando ${i + 1} de ${base64Images.length}...`);
                 
-                // 1. Upload to Storage
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('images')
-                    .upload(fileName, blob, {
-                        contentType: 'image/jpeg',
-                        upsert: false
-                    });
+                try {
+                    const blob = base64ToBlob(base64);
+                    const fileName = `upload-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+                    
+                    // 1. Upload to Storage
+                    const { error: uploadError } = await supabase.storage
+                        .from('images')
+                        .upload(fileName, blob, {
+                            contentType: 'image/jpeg',
+                            upsert: false
+                        });
 
-                if (uploadError) {
-                    if (uploadError.message.includes('bucket not found') || uploadError.message.includes('The resource was not found')) {
-                        throw new Error("O bucket 'images' não existe. Execute o script SQL.");
+                    if (uploadError) {
+                        if (uploadError.message.includes('bucket not found') || uploadError.message.includes('The resource was not found')) {
+                            throw new Error("O bucket 'images' não existe. Execute o script SQL.");
+                        }
+                        throw uploadError;
                     }
-                    throw uploadError;
-                }
 
-                // 2. Get Public URL
-                const { data: { publicUrl } } = supabase.storage
-                    .from('images')
-                    .getPublicUrl(fileName);
+                    // 2. Get Public URL
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('images')
+                        .getPublicUrl(fileName);
 
-                // 3. Insert into Database
-                const { data: insertData, error: insertError } = await supabase
-                    .from('library_images')
-                    .insert([{
-                        url: publicUrl,
-                        tags: tags,
-                        is_custom: true
-                    }])
-                    .select()
-                    .single();
-                
-                if (insertError) throw insertError;
+                    // 3. Insert into Database
+                    const { data: insertData, error: insertError } = await supabase
+                        .from('library_images')
+                        .insert([{
+                            url: publicUrl,
+                            tags: tags,
+                            is_custom: true
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (insertError) throw insertError;
 
-                if (insertData) {
-                    newEntries.push({
-                        id: insertData.id,
-                        url: insertData.url,
-                        tags: insertData.tags,
-                        isCustom: true
-                    });
+                    if (insertData) {
+                        newEntries.push({
+                            id: insertData.id,
+                            url: insertData.url,
+                            tags: insertData.tags,
+                            isCustom: true
+                        });
+                        successCount++;
+                    }
+                } catch (singleErr) {
+                    console.error("Erro ao subir imagem individual:", singleErr);
+                    failCount++;
                 }
             }
-            // Update local state
-            setCustomImages(prev => [...newEntries, ...prev]);
+            
+            // Update local state com o que deu certo
+            if (newEntries.length > 0) {
+                setCustomImages(prev => [...newEntries, ...prev]);
+            }
             setSupabaseError(null);
+            
+            if (failCount > 0) {
+                alert(`Concluído com ressalvas: ${successCount} imagens salvas, ${failCount} falharam.`);
+            }
+
           } catch (err: any) {
-            console.error("Erro no upload Supabase:", err);
-            alert(`Erro ao salvar na nuvem: ${err.message}`);
+            console.error("Erro geral no upload Supabase:", err);
+            alert(`Erro crítico ao salvar: ${err.message}`);
           } finally {
               setIsUploadingToCloud(false);
+              setProcessingStatus('');
           }
 
       } else {
@@ -353,15 +377,22 @@ export default function App() {
       
       const processed: string[] = [];
       try {
+          // Processa em chunks pequenos ou um por um para não travar a UI
           for (let i = 0; i < files.length; i++) {
+              setProcessingStatus(`Processando imagem ${i + 1} de ${files.length}...`);
+              // Pequeno delay para a UI respirar e renderizar o status
+              await new Promise(resolve => setTimeout(resolve, 10)); 
+              
               const base64 = await compressImage(files[i]);
               processed.push(base64);
           }
           setTempUploadImages(processed);
       } catch (e) {
-          alert("Erro ao processar imagens.");
+          console.error(e);
+          alert("Erro ao processar as imagens selecionadas. Tente selecionar menos arquivos por vez.");
       } finally {
           setIsProcessingImages(false);
+          setProcessingStatus('');
       }
   };
 
@@ -561,19 +592,29 @@ export default function App() {
                                 </span>
                             </div>
                         </div>
-                        <label className="cursor-pointer bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center transition-colors shadow-sm">
-                            <Upload className="w-4 h-4 mr-2" />
-                            Adicionar Imagens
+                        <label className={`cursor-pointer bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center transition-colors shadow-sm ${isProcessingImages ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {isProcessingImages ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                            {isProcessingImages ? 'Processando...' : 'Adicionar Imagens'}
                             <input 
                                 type="file" 
                                 multiple 
                                 accept="image/*"
                                 ref={fileInputRef}
                                 className="hidden"
+                                disabled={isProcessingImages}
                                 onChange={handleFileSelect}
                             />
                         </label>
                     </div>
+                    
+                    {/* Progress Indicator */}
+                    {processingStatus && (
+                         <div className="mb-4 text-center">
+                            <span className="inline-flex items-center px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-bold animate-pulse">
+                                {processingStatus}
+                            </span>
+                         </div>
+                    )}
                     
                     {/* Alerta de Erro do Supabase */}
                     {supabaseError && (
@@ -673,6 +714,13 @@ export default function App() {
                                 <div key={img.id} className="group relative aspect-square rounded-xl overflow-hidden bg-white shadow-sm border border-slate-100">
                                     <img src={img.url} alt="Custom" className="w-full h-full object-cover" />
                                     
+                                    {/* Indicador de sem tags (alerta para o admin) */}
+                                    {img.tags.length === 0 && (
+                                        <div className="absolute top-1 left-1 bg-yellow-100 text-yellow-800 p-1 rounded-full z-10" title="Sem categoria (não aparecerá no gerador)">
+                                            <CircleAlert className="w-3 h-3" />
+                                        </div>
+                                    )}
+
                                     {/* Edit Button (Tag) */}
                                     <button 
                                         onClick={() => handleOpenEditTags(img)}
@@ -693,10 +741,16 @@ export default function App() {
                                     
                                     <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/70 to-transparent p-2 pt-6 pointer-events-none">
                                         <div className="flex flex-wrap gap-1 justify-center">
-                                            {img.tags.slice(0, 2).map((t, i) => (
-                                                <span key={i} className="text-[8px] bg-white/90 text-black px-1 rounded font-bold">{t}</span>
-                                            ))}
-                                            {img.tags.length > 2 && <span className="text-[8px] bg-white/90 text-black px-1 rounded font-bold">...</span>}
+                                            {img.tags.length > 0 ? (
+                                                <>
+                                                    {img.tags.slice(0, 2).map((t, i) => (
+                                                        <span key={i} className="text-[8px] bg-white/90 text-black px-1 rounded font-bold">{t}</span>
+                                                    ))}
+                                                    {img.tags.length > 2 && <span className="text-[8px] bg-white/90 text-black px-1 rounded font-bold">...</span>}
+                                                </>
+                                            ) : (
+                                                <span className="text-[8px] bg-red-100 text-red-800 px-1 rounded font-bold">Sem tag</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
