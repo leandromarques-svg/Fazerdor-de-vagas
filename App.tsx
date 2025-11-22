@@ -88,8 +88,13 @@ const compressImage = (file: File): Promise<string> => {
 
             img.onerror = (err) => {
                 console.error("Erro ao carregar imagem para compressão:", err);
-                // Se a imagem estiver corrompida para o objeto Image, rejeitamos
-                reject(new Error("Arquivo de imagem inválido ou corrompido."));
+                // Se falhar ao criar o objeto Image, tentamos resolver com o base64 original como fallback
+                // Isso ajuda em casos de formatos exóticos que o browser exibe mas o Canvas não gosta
+                if (event.target?.result) {
+                    resolve(event.target.result as string);
+                } else {
+                    reject(new Error("Arquivo de imagem inválido ou corrompido."));
+                }
             };
         };
         
@@ -337,11 +342,23 @@ export default function App() {
               continue;
           }
 
-          setProcessingStatus(`Processando ${i + 1}/${files.length}: ${file.name}`);
+          const displayName = file.name.length > 30 ? file.name.substring(0, 15) + '...' + file.name.slice(-5) : file.name;
+          setProcessingStatus(`Processando ${i + 1}/${files.length}: ${displayName}`);
+          
           try {
             // Small delay to ensure UI updates
             await new Promise(resolve => setTimeout(resolve, 10)); 
-            const base64 = await compressImage(file);
+            
+            // CRITICAL FIX FOR LONG FILENAMES:
+            // We create a new File object with a safe, short name.
+            // This prevents the browser/OS FileReader from choking on excessively long paths/names
+            // that might have been dragged in.
+            const safeName = `upload-temp-${Date.now()}.jpg`;
+            
+            // Note: We slice the blob to ensure we are just passing the data reference
+            const safeFile = new File([file.slice(0, file.size, file.type)], safeName, { type: file.type || 'image/jpeg' });
+
+            const base64 = await compressImage(safeFile);
             processed.push(base64);
           } catch (e) { 
               console.error(`Erro ao processar imagem ${file.name}:`, e);
@@ -356,7 +373,7 @@ export default function App() {
       
       if (errorCount > 0) {
            setTimeout(() => {
-             alert(`Atenção: ${errorCount} imagem(ns) falharam ao processar. Verifique se os arquivos são válidos.`);
+             alert(`Atenção: ${errorCount} imagem(ns) falharam ao processar. Isso pode ocorrer se o arquivo estiver corrompido ou bloqueado pelo sistema.`);
           }, 100);
       } else if (processed.length === 0 && files.length > 0) {
           setTimeout(() => {
