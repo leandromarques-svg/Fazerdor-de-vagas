@@ -307,7 +307,14 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     if (len > 35) return '48px';
     return '56px';
   };
-  const getCategoryFontSize = (text: string) => { if (text.length > 25) return '22px'; return '30px'; }
+  
+  const getCategoryFontSize = (text: string) => {
+      const len = text.length;
+      if (len > 35) return '18px';
+      if (len > 25) return '22px';
+      return '30px';
+  }
+  
   const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
 
   const isReady = (bgImageBase64 || isAffirmative) && logoBase64 && jobImageBase64;
@@ -437,13 +444,30 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                         <>
                             {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />)}
                             <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
-                                <div className="absolute inset-0 flex justify-between" style={{ paddingTop: '145px', paddingLeft: '135px', paddingRight: '135px', paddingBottom: '40px' }}>
-                                    <div className="flex flex-col items-start w-full">
+                                {/* Container Principal do Header com Layout Corrigido */}
+                                <div className="absolute inset-0 w-full h-full">
+                                    
+                                    {/* Lado Esquerdo: Textos (Com Max Width para não empurrar) */}
+                                    <div className="absolute top-[145px] left-[135px] flex flex-col items-start" style={{ maxWidth: '352px' }}>
                                         <div className="relative leading-none mb-0 flex-shrink-0"><h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">#Temos</h1><h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>Vagas</h1></div>
                                         <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>{tagline}</h2></div>
-                                        <div className="mt-[50px] w-full flex flex-col gap-4 items-start"><div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}><span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div></div>
+                                        <div className="mt-[50px] w-full flex flex-col gap-4 items-start">
+                                            {/* Cápsula da Categoria: Permite quebra de linha e tem largura fixa máxima */}
+                                            <div className="px-8 py-3 rounded-[30px] shadow-lg inline-flex items-center justify-center bg-[#F42C9F]" style={{ minWidth: '200px' }}>
+                                                <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>
+                                                    {category}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}><span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span><div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>{jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}</div></div>
+
+                                    {/* Lado Direito: Foto + Código (Posicionamento Absoluto FIXO) */}
+                                    <div className="absolute top-[145px] right-[135px] flex flex-col items-center" style={{ width: '448px' }}>
+                                        <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span>
+                                        <div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                                            {jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex-1 relative flex flex-col items-center w-full z-0">

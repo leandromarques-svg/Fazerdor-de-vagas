@@ -4,7 +4,7 @@ import { SelectyJobResponse, LibraryImage } from '../types';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import jsPDF from 'jspdf';
-import { Loader2, ChevronLeft, Download, RefreshCw, Image as ImageIcon, CheckCircle, X, Eye, Layers, Edit3, Type, Copy, Check } from 'lucide-react';
+import { Loader2, ChevronLeft, Download, RefreshCw, Image as ImageIcon, CheckCircle, X, Eye, Layers, Edit3, Type, Copy, Check, HeartHandshake, Sparkles } from 'lucide-react';
 
 interface CarouselGeneratorProps {
     selectedJobs: SelectyJobResponse[];
@@ -21,15 +21,41 @@ const COLORS = {
   pink: '#F42C9F', 
   green: '#a3e635', 
   orange: '#ff6b00', 
-  white: '#FFFFFF'
+  white: '#FFFFFF',
+  
+  // Cores Específicas Vaga Afirmativa
+  affirmativePurple: '#b24eec',
+  affirmativeText1: '#9c5cf5',
+  affirmativeText2: '#7b28bb',
+  affirmativeBox: '#b25af6',
+  affirmativeContract: '#ed2bf4',
+  affirmativeModality: '#9932d8',
+  affirmativeLocation: '#7730d8',
 };
 
 const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1350;
 
-// Options for dropdowns
+// Layout Constants for Affirmative
+const HEADER_HEIGHT = 569;
+const FOOTER_HEIGHT = 249;
+const PHOTO_WIDTH = 436;
+const PHOTO_TOP = 411;
+const PHOTO_BOTTOM = 1101; 
+const PHOTO_HEIGHT = PHOTO_BOTTOM - PHOTO_TOP;
+const PHOTO_LEFT = 80; 
+const FLOATING_CARD_WIDTH = 424;
+const FLOATING_CARD_HEIGHT = 201;
+const FLOATING_CARD_RIGHT = 60;
+const FLOATING_CARD_TOP = HEADER_HEIGHT - 60 - FLOATING_CARD_HEIGHT; 
+const LOGO_HEIGHT = 100;
+const LOGO_MARGIN_BOTTOM = 60;
+const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; 
+
+// Options
 const CONTRACT_OPTIONS = ['CLT (Efetivo)', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
 const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
+const DIVERSITY_OPTIONS = ['Mulheres', 'Pessoas Negras', 'Pessoas com Deficiência', 'LGBTQIAPN+', '50+', 'Pessoas Indígenas', 'Jovem', 'Amarelos', 'Afirmativa (Geral)'];
 
 const useBase64Image = (url: string | null) => {
   const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
@@ -61,7 +87,15 @@ const getTitleFontSize = (text: string) => {
     if (len > 35) return '48px';
     return '56px';
 };
-const getCategoryFontSize = (text: string) => { if (text.length > 25) return '22px'; return '30px'; }
+
+const getCategoryFontSize = (text: string) => {
+      const len = text.length;
+      if (len > 35) return '18px';
+      if (len > 25) return '22px';
+      return '30px';
+}
+
+const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
 
 interface SlideOverrides {
     title?: string;
@@ -69,6 +103,10 @@ interface SlideOverrides {
     location?: string;
     contract?: string;
     modality?: string;
+    tagline?: string;
+    companyType?: 'multinacional' | 'nacional' | 'custom';
+    isAffirmative?: boolean;
+    affirmativeType?: string;
 }
 
 interface SlideConfig {
@@ -134,21 +172,81 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1 }) => {
     const tag2 = overrides.modality || (job.remote ? 'Remoto' : 'Presencial');
     const location = overrides.location || (job.city ? `${job.city}-${job.state}` : 'Brasil');
     const category = overrides.category || ((job.department && job.department !== 'Geral') ? job.department.toUpperCase() : 'SETOR ADMINISTRATIVO');
+    const tagline = overrides.tagline || 'TRABALHE EM UMA EMPRESA MULTINACIONAL';
+    const companyType = overrides.companyType || 'multinacional';
     
+    const isAffirmative = overrides.isAffirmative || false;
+    const affirmativeType = overrides.affirmativeType || DIVERSITY_OPTIONS[0];
+
     const footerUrl = 'metarh.com.br/vagas-metarh';
     const safeJobImage = useBase64Image(config.image || null);
+    
+    // --- RENDER: AFFIRMATIVE SLIDE ---
+    if (isAffirmative) {
+        return (
+            <div id={config.id} className="relative overflow-hidden flex flex-col shrink-0 bg-white" style={style}>
+                {/* 1. Header (Purple) */}
+                <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
+                    <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{assets.logo && <img src={assets.logo} className="h-full w-auto object-contain opacity-90" crossOrigin="anonymous" />}</div>
+                    <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
+                        <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
+                            {companyType === 'custom' ? (
+                                <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
+                            ) : (
+                                <><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>
+                            )}
+                        </h2>
+                        <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
+                    </div>
+                </div>
+                {/* 2. Photo Section (Left) */}
+                <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{safeJobImage && <img src={safeJobImage} className="w-full h-full object-cover" crossOrigin="anonymous" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {job.id}</span></div></div></div>
+                {/* 3. Diversity Title */}
+                <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
+                <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
+                {/* 4. Body Content */}
+                <div className="absolute z-10 flex flex-col items-center" style={{ top: `${HEADER_HEIGHT}px`, bottom: `${FOOTER_HEIGHT}px`, left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, right: 0, justifyContent: 'center' }}>
+                    <h2 className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]" style={{ fontSize: getTitleFontSize(title) }}>{title}</h2>
+                    <div className="flex flex-col items-center gap-[28px]">
+                        <div className="flex gap-4">{tag1 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeContract }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag1}</span></div>)}{tag2 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeModality }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag2}</span></div>)}</div>
+                        {location && (<div className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]" style={{ backgroundColor: COLORS.affirmativeLocation }}><span className="font-sans font-bold text-[24px] uppercase text-white truncate">{location}</span></div>)}
+                    </div>
+                </div>
+                {/* 5. Footer */}
+                <div className="absolute bottom-0 left-0 w-full z-30 flex" style={{ backgroundColor: COLORS.affirmativePurple, height: `${FOOTER_HEIGHT}px`, borderTopLeftRadius: '80px', borderTopRightRadius: '80px', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '30px' }}>
+                    <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full"><div className="flex items-center gap-3"><span className="font-sans font-medium text-[28px] text-white opacity-90">Candidate-se gratuitamente em</span><span className="font-sans font-bold text-[32px] text-white">{footerUrl}</span><div className="transform rotate-12 translate-y-[10px]"><svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div>
+                </div>
+            </div>
+        );
+    }
 
+    // --- RENDER: STANDARD SLIDE ---
     return (
         <div id={config.id} className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900" style={style}>
             {assets.background && (<img src={assets.background} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" crossOrigin="anonymous" />)}
             <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
-                <div className="absolute inset-0 flex justify-between" style={{ paddingTop: '145px', paddingLeft: '135px', paddingRight: '135px', paddingBottom: '40px' }}>
-                    <div className="flex flex-col items-start w-full">
+                {/* Header Container */}
+                <div className="absolute inset-0 w-full h-full">
+                    
+                    {/* Left Side: Text (With Max Width constraint) */}
+                    <div className="absolute top-[145px] left-[135px] flex flex-col items-start" style={{ maxWidth: '352px' }}>
                         <div className="relative leading-none mb-0 flex-shrink-0"><h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">#Temos</h1><h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>Vagas</h1></div>
-                        <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>TRABALHE EM UMA EMPRESA MULTINACIONAL</h2></div>
-                        <div className="mt-[50px] w-full flex flex-col gap-4 items-start"><div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}><span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div></div>
+                        <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>{tagline}</h2></div>
+                        <div className="mt-[50px] w-full flex flex-col gap-4 items-start">
+                            {/* Capsule Category: Multiline allowed, fixed max width */}
+                            <div className="px-8 py-3 rounded-[30px] shadow-lg inline-flex items-center justify-center bg-[#F42C9F]" style={{ minWidth: '200px' }}>
+                                <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight" style={{ fontSize: getCategoryFontSize(category), whiteSpace: 'normal' }}>{category}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}><span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {job.id}</span><div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>{safeJobImage && <img src={safeJobImage} alt="Foto da Vaga" className="w-full h-full object-cover block" crossOrigin="anonymous" />}</div></div>
+                    
+                    {/* Right Side: Photo (Absolute fixed position) */}
+                    <div className="absolute top-[145px] right-[135px] flex flex-col items-center" style={{ width: '448px' }}>
+                        <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {job.id}</span>
+                        <div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                            {safeJobImage && <img src={safeJobImage} alt="Foto da Vaga" className="w-full h-full object-cover block" crossOrigin="anonymous" />}
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="flex-1 relative flex flex-col items-center w-full z-0">
@@ -168,7 +266,12 @@ const generateCarouselCaption = (jobs: SelectyJobResponse[]) => {
     return [
         `🚀 VAGAS DA SEMANA METARH!\n\nConfira as oportunidades que divulgamos esta semana para grandes empresas nacionais e multinacionais:\n\n${jobList}\n\nTem alguma que é a sua cara? Comente abaixo ou acesse o link na bio para se candidatar!\n\n#Vagas #MetaRH #Carreira #Emprego #VagasDaSemana`,
         `🔥 OPORTUNIDADES EM DESTAQUE\n\nA METARH (consultoria de RH que contrata para grandes empresas) separou as melhores vagas da semana pra você:\n\n${jobList}\n\n🔗 Link na bio para se inscrever.\n\nMarque um amigo que está procurando emprego! 👇\n\n#MercadoDeTrabalho #VagasAbertas #MetaRH`,
-        `⚡ ATUALIZAÇÃO DE VAGAS\n\nEssas são as vagas que foram divulgadas ao longo da semana pela METARH. Arraste para o lado e confira os detalhes!\n\n${jobList}\n\nNão perca tempo, as inscrições estão abertas no nosso portal (Link na Bio).\n\n#Recrutamento #Seleção #Vagas #MetaRH`
+        `⚡ ATUALIZAÇÃO DE VAGAS\n\nEssas são as vagas que foram divulgadas ao longo da semana pela METARH. Arraste para o lado e confira os detalhes!\n\n${jobList}\n\nNão perca tempo, as inscrições estão abertas no nosso portal (Link na Bio).\n\n#Recrutamento #Seleção #Vagas #MetaRH`,
+        `💼 CARREIRA EM MOVIMENTO\n\nSeparamos um mix de oportunidades para diferentes perfis. Arraste para o lado e veja se o seu próximo emprego está aqui!\n\n${jobList}\n\nPara se candidatar, basta acessar o link na bio ou comentar "EU QUERO" que enviamos no direct.\n\n#VagasMetaRH #Empregos #Carreira #Oportunidades`,
+        `🌟 SEU NOVO EMPREGO ESTÁ AQUI\n\nGrandes empresas estão contratando através da MetaRH. Confira o resumo da semana:\n\n${jobList}\n\n👉 Gostou de alguma? O link para candidatura está na nossa bio!\n\nCompartilhe esse post nos seus stories para ajudar mais pessoas! 🚀\n\n#Vagas #Trabalho #Recrutamento #MetaRH`,
+        `🚀 METARH CONECTA\n\nConectamos talentos às melhores empresas do mercado. Veja as posições abertas:\n\n${jobList}\n\nCandidate-se agora mesmo pelo nosso portal de carreiras (Link na Bio).\n\n#Conexão #Talentos #Vagas #MetaRH`,
+        `📢 PLANTÃO DE VAGAS\n\nVocê pediu e nós trouxemos! Confira as vagas mais quentes da semana:\n\n${jobList}\n\nNão deixe para depois, inscreva-se já!\n\n#PlantãoDeVagas #MetaRH #EmpregoNovo`,
+        `🎯 MIRE NO SUCESSO\n\nEncontre a oportunidade que vai transformar a sua carreira:\n\n${jobList}\n\nLink para inscrição na bio!\n\n#SucessoProfissional #Vagas #MetaRH`
     ];
 };
 
@@ -235,12 +338,28 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
         setIsImagePickerOpen(false);
     };
 
-    const handleOverrideChange = (field: keyof SlideOverrides, value: string) => {
+    const handleOverrideChange = (field: keyof SlideOverrides, value: any) => {
         const updatedSlides = [...slides];
         const currentOverrides = updatedSlides[activeSlideIndex].overrides || {};
+        
+        // Logic for Tagline Updates based on buttons
+        let newOverrides = { ...currentOverrides, [field]: value };
+        
+        if (field === 'companyType') {
+            if (value === 'multinacional') {
+                newOverrides.tagline = 'TRABALHE EM UMA EMPRESA MULTINACIONAL';
+            } else if (value === 'nacional') {
+                newOverrides.tagline = 'TRABALHE EM UMA EMPRESA NACIONAL';
+            }
+            // If custom, we keep the existing tagline or let the user type
+        } else if (field === 'tagline') {
+            // If user types manually, switch to custom
+            newOverrides.companyType = 'custom';
+        }
+
         updatedSlides[activeSlideIndex] = {
             ...updatedSlides[activeSlideIndex],
-            overrides: { ...currentOverrides, [field]: value }
+            overrides: newOverrides
         };
         setSlides(updatedSlides);
     };
@@ -369,8 +488,8 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
     }
 
     const activeSlide = slides[activeSlideIndex];
-    const activeJob = activeSlide?.job;
     const activeOverrides = activeSlide?.overrides || {};
+    const currentCompanyType = activeOverrides.companyType || 'multinacional';
     
     // Preview Scale Calculation
     const PREVIEW_SCALE = 0.35;
@@ -400,21 +519,19 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                 </div>
             </div>
 
-            {/* Main Workspace */}
+            {/* Main Workspace - THREE COLUMNS */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-                {/* Left Sidebar (Slides List + Caption) */}
-                <div className="w-full lg:w-80 bg-white border-r border-slate-200 flex flex-col order-2 lg:order-1 max-h-[40vh] lg:max-h-full">
+                
+                {/* COLUMN 1: SLIDES & CAPTION (Left) */}
+                <div className="w-full lg:w-[300px] bg-white border-r border-slate-200 flex flex-col z-20 shrink-0">
                     
-                    <div className="p-3 border-b border-slate-100 bg-slate-50/50">
-                        <h3 className="text-xs font-bold uppercase text-slate-500 flex items-center"><Layers className="w-3 h-3 mr-1"/> Slides do Carrossel</h3>
-                    </div>
-
-                    {/* Slides List */}
+                    {/* Slide List */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                        <div className="text-xs font-bold uppercase text-slate-400 mb-3 flex items-center sticky top-0 bg-white py-1 z-10"><Layers className="w-3 h-3 mr-1"/> {slides.length} Slides</div>
                         <div className="flex flex-col gap-2">
                             {slides.map((slide, idx) => (
-                                <div key={slide.id} onClick={() => setActiveSlideIndex(idx)} className={`p-2 rounded-lg cursor-pointer border-2 transition-all flex items-center gap-3 ${activeSlideIndex === idx ? 'border-brand-600 bg-brand-50 shadow-sm' : 'border-transparent hover:bg-slate-50'}`}>
-                                    <div className="w-8 h-10 lg:w-10 lg:h-12 bg-slate-200 rounded overflow-hidden shrink-0 border border-slate-300 relative">
+                                <div key={slide.id} onClick={() => setActiveSlideIndex(idx)} className={`p-2 rounded-lg cursor-pointer border transition-all flex items-center gap-3 ${activeSlideIndex === idx ? 'border-brand-600 bg-brand-50 shadow-sm' : 'border-transparent hover:bg-slate-50'}`}>
+                                    <div className="w-8 h-10 bg-slate-200 rounded overflow-hidden shrink-0 border border-slate-300 relative">
                                         <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-400">{idx + 1}</span>
                                         {slide.type === 'cover' && assets.cover && <img src={assets.cover} className="w-full h-full object-cover absolute inset-0" crossOrigin="anonymous" />}
                                         {slide.type === 'back' && assets.back && <img src={assets.back} className="w-full h-full object-cover absolute inset-0" crossOrigin="anonymous" />}
@@ -424,40 +541,128 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                                         <div className="text-sm font-bold truncate text-slate-900">{slide.type === 'cover' ? 'Capa' : slide.type === 'back' ? 'Contra-Capa' : `${slide.job?.title}`}</div>
                                         <div className="text-xs text-slate-500 truncate">{slide.type === 'job' ? (slide.overrides?.location || slide.job?.city || 'Remoto') : 'Institucional'}</div>
                                     </div>
-                                    {activeSlideIndex === idx && <div className="ml-auto w-2 h-2 rounded-full bg-brand-600"></div>}
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Caption Area (Bottom of Sidebar) */}
+                    {/* Caption Area (Fixed at Bottom of Column 1) */}
                     <div className="p-4 border-t border-slate-200 bg-slate-50">
                         <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-xs font-bold uppercase text-slate-500 flex items-center"><Type className="w-3 h-3 mr-1"/> Legenda do Post</h3>
-                            <button onClick={() => setSelectedCaptionIdx((prev) => (prev + 1) % captions.length)} className="text-[10px] bg-white border border-brand-200 px-2 py-0.5 rounded-full text-brand-600 font-bold hover:bg-brand-50 flex items-center"><RefreshCw className="w-3 h-3 mr-1"/> Trocar Opção</button>
+                            <h3 className="text-xs font-bold uppercase text-slate-500 flex items-center"><Type className="w-3 h-3 mr-1"/> Legenda</h3>
+                            <button onClick={() => setSelectedCaptionIdx((prev) => (prev + 1) % captions.length)} className="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-full text-slate-600 font-bold hover:bg-brand-50 hover:text-brand-600 flex items-center transition-colors"><RefreshCw className="w-3 h-3 mr-1"/> Trocar</button>
                         </div>
-                        <textarea readOnly value={captions[selectedCaptionIdx]} className="w-full h-24 bg-white p-3 rounded-xl border border-brand-100 text-xs text-slate-600 resize-none focus:outline-none" />
-                        <button onClick={copyCaption} className="w-full mt-2 py-2 bg-brand-600 text-white rounded-lg font-bold text-xs flex items-center justify-center hover:bg-brand-700 transition-colors gap-2">
+                        <textarea readOnly value={captions[selectedCaptionIdx]} className="w-full h-24 bg-white p-3 rounded-xl border border-slate-200 text-xs text-slate-600 resize-none focus:outline-none mb-2" />
+                        <button onClick={copyCaption} className="w-full py-2 bg-brand-600 text-white rounded-lg font-bold text-xs flex items-center justify-center hover:bg-brand-700 transition-colors gap-2 shadow-sm">
                             {copied ? <Check className="w-3 h-3"/> : <Copy className="w-3 h-3"/>}
                             {copied ? 'Copiado!' : 'Copiar Legenda'}
                         </button>
                     </div>
                 </div>
 
-                {/* Right/Main Area (Preview + Contextual Edit) */}
-                <div className="flex-1 bg-slate-100 flex flex-col overflow-hidden order-1 lg:order-2">
-                     {/* Preview Container */}
-                     <div className="flex-1 flex items-center justify-center p-4 relative bg-slate-200/50 overflow-hidden">
-                        <div className="relative shadow-2xl rounded-[20px] bg-white overflow-hidden shrink-0" style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}>
+                {/* COLUMN 2: EDITOR FORM (Middle) */}
+                <div className="w-full lg:w-[360px] bg-slate-50/50 border-r border-slate-200 flex flex-col z-20 overflow-y-auto custom-scrollbar shrink-0 p-5">
+                     {activeSlide && activeSlide.type === 'job' ? (
+                        <div className="space-y-5">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+                                <h3 className="text-sm font-bold text-brand-800 flex items-center"><Edit3 className="w-4 h-4 mr-2"/> Editar Slide {activeSlideIndex + 1}</h3>
+                                
+                                <div className="flex items-center bg-white px-2 py-1 rounded-full border border-slate-200 shadow-sm">
+                                    <label className={`text-[10px] font-bold uppercase mr-2 flex items-center ${activeOverrides.isAffirmative ? 'text-purple-600' : 'text-slate-400'}`}>
+                                        <HeartHandshake className="w-3 h-3 mr-1" /> Afirmativa
+                                    </label>
+                                    <div className="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={activeOverrides.isAffirmative || false} 
+                                            onChange={(e) => handleOverrideChange('isAffirmative', e.target.checked)} 
+                                            className="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-purple-500"
+                                        />
+                                        <label className={`toggle-label block overflow-hidden h-4 rounded-full cursor-pointer transition-colors duration-200 ${activeOverrides.isAffirmative ? 'bg-purple-500' : 'bg-slate-300'}`}></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tagline */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Frase de Efeito / Tipo de Empresa</label>
+                                <div className="flex gap-2 mb-3">
+                                    <button onClick={() => handleOverrideChange('companyType', 'multinacional')} className={`flex-1 py-1.5 px-2 rounded-full text-[10px] font-bold border transition-colors ${currentCompanyType === 'multinacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>Multinacional</button>
+                                    <button onClick={() => handleOverrideChange('companyType', 'nacional')} className={`flex-1 py-1.5 px-2 rounded-full text-[10px] font-bold border transition-colors ${currentCompanyType === 'nacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>Nacional</button>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    value={activeOverrides.tagline || 'TRABALHE EM UMA EMPRESA MULTINACIONAL'} 
+                                    onChange={(e) => handleOverrideChange('tagline', e.target.value)} 
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-brand-500 bg-slate-50"
+                                    placeholder="Ex: TRABALHE EM UMA EMPRESA LÍDER"
+                                />
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Título da Vaga</label>
+                                    <input type="text" value={activeOverrides.title || activeSlide.job?.title.split(' - ')[0].trim()} onChange={(e) => handleOverrideChange('title', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg text-sm font-bold focus:ring-1 focus:ring-brand-500 shadow-sm" />
+                                </div>
+                                
+                                {activeOverrides.isAffirmative ? (
+                                        <div>
+                                        <label className="block text-[10px] font-bold text-purple-500 uppercase mb-1">Público da Vaga</label>
+                                        <select value={activeOverrides.affirmativeType || DIVERSITY_OPTIONS[0]} onChange={(e) => handleOverrideChange('affirmativeType', e.target.value)} className="w-full p-3 border border-purple-200 bg-purple-50 text-purple-700 rounded-lg text-sm font-bold shadow-sm">
+                                            {DIVERSITY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Categoria (Pílula)</label>
+                                        <input type="text" value={activeOverrides.category || (activeSlide.job?.department && activeSlide.job.department !== 'Geral' ? activeSlide.job.department.toUpperCase() : 'SETOR ADMINISTRATIVO')} onChange={(e) => handleOverrideChange('category', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg text-sm font-bold shadow-sm" />
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-1">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Contrato</label>
+                                            <select value={activeOverrides.contract || activeSlide.job?.contract_type || 'CLT (Efetivo)'} onChange={(e) => handleOverrideChange('contract', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-white">
+                                            {CONTRACT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-span-1">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modalidade</label>
+                                            <select value={activeOverrides.modality || (activeSlide.job?.remote ? 'Remoto' : 'Presencial')} onChange={(e) => handleOverrideChange('modality', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-white">
+                                            {MODALITY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Local</label>
+                                    <input type="text" value={activeOverrides.location || (activeSlide.job?.city ? `${activeSlide.job.city}-${activeSlide.job.state}` : 'Brasil')} onChange={(e) => handleOverrideChange('location', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg text-sm shadow-sm" />
+                                </div>
+                            </div>
+                        </div>
+                     ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                            <div className="bg-slate-100 p-4 rounded-full mb-3">
+                                <Sparkles className="w-6 h-6 text-brand-300" />
+                            </div>
+                            <p className="text-sm font-medium">Selecione um slide de vaga na esquerda para editar seus textos.</p>
+                        </div>
+                     )}
+                </div>
+
+                {/* COLUMN 3: PREVIEW (Right) */}
+                <div className="flex-1 bg-slate-100 flex flex-col overflow-hidden order-3 relative z-10">
+                     <div className="absolute inset-0 flex items-center justify-center p-6 bg-slate-200/50 overflow-hidden">
+                        <div className="relative shadow-2xl rounded-[20px] bg-white overflow-hidden shrink-0 transition-transform duration-300" style={{ width: PREVIEW_WIDTH, height: PREVIEW_HEIGHT }}>
                             {/* Interactive Layer */}
                             <div className="absolute inset-0 z-20 pointer-events-none">
                                 {activeSlide && activeSlide.type === 'job' && (
                                     <div className="absolute top-4 right-4 pointer-events-auto">
                                         <button 
                                             onClick={() => setIsImagePickerOpen(true)}
-                                            className="bg-white text-brand-700 px-3 py-1.5 rounded-full shadow-lg font-bold text-xs border border-brand-200 hover:bg-brand-50 flex items-center gap-2 transition-transform hover:scale-105"
+                                            className="bg-white text-brand-700 px-4 py-2 rounded-full shadow-lg font-bold text-xs border border-brand-200 hover:bg-brand-50 flex items-center gap-2 transition-transform hover:scale-105 group"
                                         >
-                                            <ImageIcon className="w-3 h-3" /> Trocar Foto
+                                            <ImageIcon className="w-3 h-3 group-hover:text-brand-600" /> Trocar Foto
                                         </button>
                                     </div>
                                 )}
@@ -470,41 +675,12 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                             )}
                         </div>
                      </div>
-
-                     {/* Contextual Edit Panel (Bottom on mobile, Bottom on Desktop too for consistency in this layout) */}
-                     {activeSlide && activeSlide.type === 'job' && (
-                        <div className="h-auto bg-white border-t border-slate-200 p-4 animate-in slide-in-from-bottom-4 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] overflow-y-auto">
-                            <div className="max-w-5xl mx-auto">
-                                <h3 className="text-xs font-bold uppercase text-brand-600 mb-3 flex items-center"><Edit3 className="w-3 h-3 mr-1"/> Editando Slide {activeSlideIndex + 1}</h3>
-                                <div className="flex flex-col lg:flex-row gap-4">
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Título</label>
-                                        <input type="text" value={activeOverrides.title || activeSlide.job?.title.split(' - ')[0].trim()} onChange={(e) => handleOverrideChange('title', e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm font-bold focus:ring-1 focus:ring-brand-500" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Categoria</label>
-                                        <input type="text" value={activeOverrides.category || (activeSlide.job?.department && activeSlide.job.department !== 'Geral' ? activeSlide.job.department.toUpperCase() : 'SETOR ADMINISTRATIVO')} onChange={(e) => handleOverrideChange('category', e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm font-bold" />
-                                    </div>
-                                    <div className="w-full lg:w-40">
-                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Contrato</label>
-                                         <select value={activeOverrides.contract || activeSlide.job?.contract_type || 'CLT (Efetivo)'} onChange={(e) => handleOverrideChange('contract', e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white">
-                                            {CONTRACT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                    </div>
-                                     <div className="w-full lg:w-40">
-                                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Local</label>
-                                         <input type="text" value={activeOverrides.location || (activeSlide.job?.city ? `${activeSlide.job.city}-${activeSlide.job.state}` : 'Brasil')} onChange={(e) => handleOverrideChange('location', e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                     )}
                 </div>
             </div>
 
             {/* Image Picker Modal */}
             {isImagePickerOpen && (
-                <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsImagePickerOpen(false)}>
+                <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsImagePickerOpen(false)}>
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                             <h3 className="text-xl font-bold text-slate-900">Selecionar Imagem para o Slide</h3>
