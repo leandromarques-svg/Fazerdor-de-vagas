@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SelectyJobResponse, LibraryImage, ImageTag } from '../types';
 import { toPng, toBlob } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2, Share2, ClipboardCopy } from 'lucide-react';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2, Share2, ImageIcon } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
@@ -168,7 +168,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [isCopyingImage, setIsCopyingImage] = useState(false);
 
   const initialTitle = job.title.split(' - ')[0].trim();
   const [title, setTitle] = useState(initialTitle);
@@ -283,27 +282,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     }
   };
 
-  const handleCopyToClipboard = async () => {
-    if (cardRef.current === null) return;
-    setIsCopyingImage(true);
-    try {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const blob = await generateBlob();
-        if (!blob) throw new Error("Erro ao gerar arquivo");
-
-        await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-        ]);
-        alert("Imagem copiada! Agora basta colar (Ctrl+V) no LinkedIn, WhatsApp ou Instagram Web.");
-        if (onSuccess) onSuccess();
-    } catch (err) {
-        console.error("Erro ao copiar imagem:", err);
-        alert("Não foi possível copiar a imagem diretamente. Use o botão de download.");
-    } finally {
-        setIsCopyingImage(false);
-    }
-  };
-
   const toggleTag = (tag: ImageTag) => setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
   const filteredImages = libraryImages.filter(img => {
@@ -351,9 +329,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; 
   const totalCaptions = isAffirmative ? (AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)']).length : CAPTION_TEMPLATES.length;
 
-  // Detecta se é dispositivo móvel para mostrar botão de Share
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
       
@@ -400,8 +375,8 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
             </div>
 
             <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-3">
-                {/* Mobile / Share Natively */}
-                <button onClick={handleShare} disabled={isSharing || !isReady} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                {/* Mobile Share Button - Only visible on md and below */}
+                <button onClick={handleShare} disabled={isSharing || !isReady} className="md:hidden w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                     {isSharing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
                     {isSharing ? 'Preparando...' : 'Compartilhar no App'}
                 </button>
@@ -411,15 +386,10 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                         <ChevronLeft className="w-4 h-4" /> Voltar
                     </button>
                     
-                    {/* Desktop Copy */}
-                    <button onClick={handleCopyToClipboard} disabled={isCopyingImage || !isReady} className="flex-1 py-3 bg-white border border-brand-200 text-brand-700 font-bold rounded-full hover:bg-brand-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
-                        {isCopyingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCopy className="w-4 h-4" />}
-                        Copiar Imagem
-                    </button>
-
+                    {/* Download Button */}
                     <button onClick={handleDownload} disabled={isGenerating || !isReady} className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full flex items-center justify-center gap-2 disabled:opacity-70">
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        Baixar
+                        Baixar Imagem
                     </button>
                 </div>
             </div>
@@ -427,63 +397,67 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
       </div>
 
       {/* Preview Area */}
-      <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-4 order-1 lg:order-2 min-h-[500px] lg:fixed lg:right-0 lg:top-0 lg:h-screen z-20">
-        <div style={{ transform: 'scale(0.38)', transformOrigin: 'center center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            {/* ================= CANVAS START ================= */}
-            <div ref={cardRef} className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900" style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}>
-                {isAffirmative ? (
-                    <div className="relative w-full h-full flex flex-col bg-white">
-                        {/* 1. Header (Purple) */}
-                        <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
-                            <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}</div>
-                            <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
-                                <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">{companyType === 'custom' ? (<span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>) : (<><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>)}</h2>
-                                <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
-                            </div>
-                        </div>
-                        {/* 2. Photo Section (Left) */}
-                        <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div></div>
-                        {/* 3. Diversity Title */}
-                        <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
-                        <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
-                        {/* 4. Body Content */}
-                        <div className="absolute z-10 flex flex-col items-center" style={{ top: `${HEADER_HEIGHT}px`, bottom: `${FOOTER_HEIGHT}px`, left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, right: 0, justifyContent: 'center' }}>
-                            <h2 className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]" style={{ fontSize: getTitleFontSize(title) }}>{title}</h2>
-                            <div className="flex flex-col items-center gap-[28px]">
-                                <div className="flex gap-4">{tag1 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeContract }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag1}</span></div>)}{tag2 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeModality }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag2}</span></div>)}</div>
-                                {location && (<div className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]" style={{ backgroundColor: COLORS.affirmativeLocation }}><span className="font-sans font-bold text-[24px] uppercase text-white truncate">{location}</span></div>)}
-                            </div>
-                        </div>
-                        {/* 5. Footer */}
-                        <div className="absolute bottom-0 left-0 w-full z-30 flex" style={{ backgroundColor: COLORS.affirmativePurple, height: `${FOOTER_HEIGHT}px`, borderTopLeftRadius: '80px', borderTopRightRadius: '80px', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '30px' }}>
-                             <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full"><div className="flex items-center gap-3"><span className="font-sans font-medium text-[28px] text-white opacity-90">Candidate-se gratuitamente em</span><span className="font-sans font-bold text-[32px] text-white">{footerUrl}</span><div className="transform rotate-12 translate-y-[10px]"><svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div>
-                        </div>
-                    </div>
-                ) : (
-                    /* ================= STANDARD LAYOUT ================= */
-                    <>
-                        {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />)}
-                        <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
-                            <div className="absolute inset-0 flex justify-between" style={{ paddingTop: '145px', paddingLeft: '135px', paddingRight: '135px', paddingBottom: '40px' }}>
-                                <div className="flex flex-col items-start w-full">
-                                    <div className="relative leading-none mb-0 flex-shrink-0"><h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">#Temos</h1><h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>Vagas</h1></div>
-                                    <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>{tagline}</h2></div>
-                                    <div className="mt-[50px] w-full flex flex-col gap-4 items-start"><div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}><span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div></div>
+      <div className="w-full lg:w-2/3 flex flex-col items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-2 lg:p-4 order-1 lg:order-2 relative z-20 overflow-hidden min-h-[450px] lg:min-h-screen lg:fixed lg:right-0 lg:top-0 lg:h-screen">
+        
+        {/* The Preview */}
+        <div className="w-full h-full flex items-center justify-center">
+            <div className="transform-gpu transition-transform duration-300 scale-[0.26] sm:scale-[0.32] md:scale-[0.4] lg:scale-[0.45] xl:scale-[0.55]" style={{ transformOrigin: 'center center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                {/* ================= CANVAS START ================= */}
+                <div ref={cardRef} className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900" style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}>
+                    {isAffirmative ? (
+                        <div className="relative w-full h-full flex flex-col bg-white">
+                            {/* 1. Header (Purple) */}
+                            <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
+                                <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}</div>
+                                <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
+                                    <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">{companyType === 'custom' ? (<span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>) : (<><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>)}</h2>
+                                    <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
                                 </div>
-                                <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}><span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span><div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>{jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}</div></div>
+                            </div>
+                            {/* 2. Photo Section (Left) */}
+                            <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div></div>
+                            {/* 3. Diversity Title */}
+                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
+                            <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
+                            {/* 4. Body Content */}
+                            <div className="absolute z-10 flex flex-col items-center" style={{ top: `${HEADER_HEIGHT}px`, bottom: `${FOOTER_HEIGHT}px`, left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, right: 0, justifyContent: 'center' }}>
+                                <h2 className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]" style={{ fontSize: getTitleFontSize(title) }}>{title}</h2>
+                                <div className="flex flex-col items-center gap-[28px]">
+                                    <div className="flex gap-4">{tag1 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeContract }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag1}</span></div>)}{tag2 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeModality }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag2}</span></div>)}</div>
+                                    {location && (<div className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]" style={{ backgroundColor: COLORS.affirmativeLocation }}><span className="font-sans font-bold text-[24px] uppercase text-white truncate">{location}</span></div>)}
+                                </div>
+                            </div>
+                            {/* 5. Footer */}
+                            <div className="absolute bottom-0 left-0 w-full z-30 flex" style={{ backgroundColor: COLORS.affirmativePurple, height: `${FOOTER_HEIGHT}px`, borderTopLeftRadius: '80px', borderTopRightRadius: '80px', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '30px' }}>
+                                <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full"><div className="flex items-center gap-3"><span className="font-sans font-medium text-[28px] text-white opacity-90">Candidate-se gratuitamente em</span><span className="font-sans font-bold text-[32px] text-white">{footerUrl}</span><div className="transform rotate-12 translate-y-[10px]"><svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div>
                             </div>
                         </div>
-                        <div className="flex-1 relative flex flex-col items-center w-full z-0">
-                            <div className="flex flex-col items-center w-full px-[135px]" style={{ marginTop: '240px' }}>
-                                <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>{title}</h1>
-                                <div className="flex flex-wrap justify-center gap-5 w-full">{tag1 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">{tag1}</span></div>)}{tag2 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>{tag2}</span></div>)}{location && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]"><span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>{location}</span></div>)}</div>
+                    ) : (
+                        /* ================= STANDARD LAYOUT ================= */
+                        <>
+                            {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />)}
+                            <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
+                                <div className="absolute inset-0 flex justify-between" style={{ paddingTop: '145px', paddingLeft: '135px', paddingRight: '135px', paddingBottom: '40px' }}>
+                                    <div className="flex flex-col items-start w-full">
+                                        <div className="relative leading-none mb-0 flex-shrink-0"><h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">#Temos</h1><h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>Vagas</h1></div>
+                                        <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>{tagline}</h2></div>
+                                        <div className="mt-[50px] w-full flex flex-col gap-4 items-start"><div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}><span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div></div>
+                                    </div>
+                                    <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}><span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span><div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>{jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}</div></div>
+                                </div>
                             </div>
-                            <div className="absolute bottom-0 w-full px-[135px] pb-[145px]"><div className="w-full h-[1px] bg-white opacity-30 mb-10"></div><div className="flex items-center justify-between w-full"><div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">{logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}</div><div className="flex flex-col items-end text-right relative mr-12"><span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">Candidate-se gratuitamente em</span><span className="text-white font-sans font-bold text-[27px]">{footerUrl}</span><div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg"><svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div></div>
-                        </div>
-                    </>
-                )}
+                            <div className="flex-1 relative flex flex-col items-center w-full z-0">
+                                <div className="flex flex-col items-center w-full px-[135px]" style={{ marginTop: '240px' }}>
+                                    <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>{title}</h1>
+                                    <div className="flex flex-wrap justify-center gap-5 w-full">{tag1 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">{tag1}</span></div>)}{tag2 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>{tag2}</span></div>)}{location && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]"><span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>{location}</span></div>)}</div>
+                                </div>
+                                <div className="absolute bottom-0 w-full px-[135px] pb-[145px]"><div className="w-full h-[1px] bg-white opacity-30 mb-10"></div><div className="flex items-center justify-between w-full"><div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">{logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}</div><div className="flex flex-col items-end text-right relative mr-12"><span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">Candidate-se gratuitamente em</span><span className="text-white font-sans font-bold text-[27px]">{footerUrl}</span><div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg"><svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div></div>
+                            </div>
+                        </>
+                    )}
+                </div>
+                {/* ================= CANVAS END ================= */}
             </div>
-             {/* ================= CANVAS END ================= */}
         </div>
       </div>
     </div>
