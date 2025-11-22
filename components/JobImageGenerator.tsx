@@ -1,72 +1,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SelectyJobResponse } from '../types';
+import { SelectyJobResponse, LibraryImage, ImageTag } from '../types';
 import { toPng } from 'html-to-image';
-import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Upload, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, MousePointer2 } from 'lucide-react';
+import { Download, RefreshCw, ChevronLeft, Monitor, Hash, Type, Loader2, Link as LinkIcon, Copy, CheckCircle, ChevronDown, Check, HeartHandshake, Filter, Shuffle, Trash2 } from 'lucide-react';
 
 interface JobImageGeneratorProps {
   job: SelectyJobResponse;
   onClose: () => void;
   onSuccess?: () => void;
+  libraryImages: LibraryImage[];
 }
 
-// Imagens de escritório expandidas (Foco em Pessoas e Portrait/Vertical)
-const STOCK_IMAGES = [
-  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1598550832205-d416966b840e?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1664575602554-2087b04935a5?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1573497491208-6b1acb260507?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1530268729831-4b0b9e170218?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1480429370139-e0132c086e2a?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1573164574572-cb8f5647d857?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1559523182-a284c3fb7cff?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1568992687947-86c22da06ea0?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1593642632823-8f785e67ac73?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1553877606-3c9cb40559dc?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80",
-  "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80"
-];
+const AVAILABLE_TAGS: ImageTag[] = ['Homem', 'Mulher', 'Negros', '50+', 'LGBTQIAPN+', 'PCD', 'Indígenas', 'Jovem'];
 
 // Helper para hashtags padrão
 const getTags = (job: SelectyJobResponse) => {
@@ -116,6 +61,16 @@ const AFFIRMATIVE_CAPTIONS: Record<string, Array<(job: SelectyJobResponse, link:
         (job, link) => `🚀 CARREIRA NÃO TEM IDADE\n\nTem vaga para ${job.title} (Afirmativa 50+).\n\nQueremos somar a sua experiência com a nossa inovação. Venha fazer parte do nosso time!\n\n📍 ${job.city || 'Brasil'}\n\n👉 Aplique agora: ${link}\n\n#Longevidade #Profissionais50Mais #MetaRH ${getTags(job)}`,
         (job, link) => `OPORTUNIDADE SÊNIOR 🌟\n\nEstamos contratando ${job.title} - Vaga voltada para talentos 50+.\n\nAcreditamos na troca de gerações e no valor da experiência. Junte-se a nós!\n\n🔗 Link da vaga: ${link}\n\n#Vaga50Mais #DiversidadeEtária #MetaRH ${getTags(job)}`
     ],
+    'Pessoas Indígenas': [
+        (job, link) => `🏹 VAGA AFIRMATIVA PARA PESSOAS INDÍGENAS\n\nValorizamos a ancestralidade e a pluralidade. Estamos com vaga aberta para ${job.title} exclusiva para talentos indígenas.\n\nVenha somar com sua visão de mundo e cultura.\n\n🔗 Inscreva-se: ${link}\n\n#VagaAfirmativa #PovosOriginários #Diversidade #MetaRH ${getTags(job)}`,
+        (job, link) => `🌿 DIVERSIDADE E INCLUSÃO\n\nOportunidade para ${job.title} (Foco em Pessoas Indígenas).\n\nQueremos construir um futuro onde todas as histórias têm espaço. Junte-se a nós!\n\n📍 ${job.city || 'Brasil'}\n\n👉 Link: ${link}\n\n#Indígenas #Oportunidade #MetaRH ${getTags(job)}`,
+        (job, link) => `TALENTO E IDENTIDADE ✨\n\nEstamos contratando ${job.title} - Vaga Afirmativa para Indígenas.\n\nTraga sua potência para nosso time. Respeito e valorização em primeiro lugar.\n\n🔗 Detalhes: ${link}\n\n#VagaIndígena #Inclusão #Carreira #MetaRH ${getTags(job)}`
+    ],
+    'Jovem': [
+        (job, link) => `⚡ OPORTUNIDADE JOVEM\n\nEstá em busca do seu espaço no mercado de trabalho? Temos uma vaga para ${job.title} ideal para quem tem energia e vontade de aprender.\n\nSe você é jovem e quer construir uma carreira sólida, vem com a gente!\n\n🔗 Inscreva-se: ${link}\n\n#JovemAprendiz #PrimeiroEmprego #Estágio #MetaRH ${getTags(job)}`,
+        (job, link) => `🚀 DECOLANDO NA CARREIRA\n\nVaga para ${job.title} com foco em jovens talentos.\n\nAcreditamos no potencial da juventude para inovar. Se você quer crescer profissionalmente, essa chance é sua.\n\n📍 ${job.city || 'Brasil'}\n\n👉 Candidate-se: ${link}\n\n#OportunidadeJovem #Carreira #MetaRH ${getTags(job)}`,
+        (job, link) => `FUTURO É AGORA 🌟\n\nEstamos contratando ${job.title}.\n\nBuscamos jovens dinâmicos e criativos para integrar nosso time. Não precisa de experiência, só de vontade de fazer acontecer!\n\n🔗 Link: ${link}\n\n#Juventude #Emprego #MetaRH ${getTags(job)}`
+    ],
     'Afirmativa (Geral)': [
         (job, link) => `🤝 VAGA AFIRMATIVA\n\nEstamos com oportunidade para ${job.title} focada em aumentar a diversidade do nosso time.\n\nSe você faz parte de grupos sub-representados, queremos conhecer seu talento!\n\n🔗 Candidate-se: ${link}\n\n#DiversidadeeInclusão #VagaAfirmativa #MetaRH ${getTags(job)}`,
         (job, link) => `🌟 DIVERSIDADE IMPORTA\n\nBuscamos ${job.title} para somar ao nosso time (Vaga Afirmativa).\n\nValorizamos diferentes perspectivas e vivências. Venha crescer com a gente!\n\n👉 Inscreva-se: ${link}\n\n#Inclusão #Oportunidade #MetaRH ${getTags(job)}`,
@@ -144,30 +99,15 @@ const COLORS = {
   white: '#FFFFFF'
 };
 
-// Opções para selects
 const CONTRACT_OPTIONS = ['CLT (Efetivo)', 'PJ', 'Estágio', 'Temporário', 'Freelance', 'Trainee'];
 const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
-const DIVERSITY_OPTIONS = [
-    'Mulheres',
-    'Pessoas Negras',
-    'Pessoas com Deficiência',
-    'LGBTQIA+',
-    '50+',
-    'Afirmativa (Geral)'
-];
+const DIVERSITY_OPTIONS = ['Mulheres', 'Pessoas Negras', 'Pessoas com Deficiência', 'LGBTQIAPN+', '50+', 'Pessoas Indígenas', 'Jovem', 'Afirmativa (Geral)'];
 
 const useBase64Image = (url: string | null) => {
   const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
-
   useEffect(() => {
-    if (!url) {
-      setDataSrc(undefined);
-      return;
-    }
-    if (url.startsWith('data:')) {
-      setDataSrc(url);
-      return;
-    }
+    if (!url) { setDataSrc(undefined); return; }
+    if (url.startsWith('data:')) { setDataSrc(url); return; }
     let isMounted = true;
     const loadImage = async () => {
       try {
@@ -176,13 +116,9 @@ const useBase64Image = (url: string | null) => {
         if (!response.ok) throw new Error('Network response was not ok');
         const blob = await response.blob();
         const reader = new FileReader();
-        reader.onloadend = () => {
-          if (isMounted) setDataSrc(reader.result as string);
-        };
+        reader.onloadend = () => { if (isMounted) setDataSrc(reader.result as string); };
         reader.readAsDataURL(blob);
-      } catch (error) {
-        if (isMounted) setDataSrc(url);
-      }
+      } catch (error) { if (isMounted) setDataSrc(url); }
     };
     loadImage();
     return () => { isMounted = false; };
@@ -200,74 +136,35 @@ interface GeneratorSelectProps {
 const GeneratorSelect: React.FC<GeneratorSelectProps> = ({ label, value, options, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setIsOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   return (
     <div className="relative w-full" ref={containerRef}>
       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{label}</label>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`relative w-full pl-4 pr-8 py-2.5 border rounded-full text-left transition-all focus:outline-none text-xs bg-white
-          ${isOpen 
-            ? 'border-[#aa3ffe] ring-2 ring-[#aa3ffe]/20 shadow-sm' 
-            : 'border-slate-200 hover:border-brand-300'
-          }
-        `}
-      >
-        <span className="block truncate font-medium text-slate-700">
-          {value || "Selecione..."}
-        </span>
-        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
-          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#aa3ffe]' : ''}`} />
-        </div>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className={`relative w-full pl-4 pr-8 py-2.5 border rounded-full text-left transition-all focus:outline-none text-xs bg-white ${isOpen ? 'border-[#aa3ffe] ring-2 ring-[#aa3ffe]/20 shadow-sm' : 'border-slate-200 hover:border-brand-300'}`}>
+        <span className="block truncate font-medium text-slate-700">{value || "Selecione..."}</span>
+        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#aa3ffe]' : ''}`} /></div>
       </button>
-
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
-          <ul className="py-1">
-            {options.map((option) => (
-              <li
-                key={option}
-                onClick={() => {
-                    onChange(option);
-                    setIsOpen(false);
-                }}
-                className={`px-4 py-2 cursor-pointer flex items-center justify-between text-xs transition-colors
-                  ${value === option 
-                    ? 'bg-brand-50 text-brand-700 font-bold' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
-                  }
-                `}
-              >
-                <span className="truncate">{option}</span>
-                {value === option && <Check className="w-3 h-3 text-brand-600" />}
-              </li>
-            ))}
-          </ul>
+          <ul className="py-1">{options.map((option) => (<li key={option} onClick={() => { onChange(option); setIsOpen(false); }} className={`px-4 py-2 cursor-pointer flex items-center justify-between text-xs transition-colors ${value === option ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'}`}><span className="truncate">{option}</span>{value === option && <Check className="w-3 h-3 text-brand-600" />}</li>))}</ul>
         </div>
       )}
     </div>
   );
 };
 
-export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClose, onSuccess }) => {
+export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClose, onSuccess, libraryImages }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const initialTitle = job.title.split(' - ')[0].trim();
   const [title, setTitle] = useState(initialTitle);
-  
   const [tag1, setTag1] = useState(job.contract_type === 'CLT' ? 'CLT (Efetivo)' : (job.contract_type || 'CLT (Efetivo)'));
   const [tag2, setTag2] = useState(job.remote ? 'Remoto' : 'Presencial');
   const [location, setLocation] = useState(job.city ? `${job.city}-${job.state}` : 'Brasil');
@@ -275,7 +172,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [category, setCategory] = useState('SETOR ADMINISTRATIVO'); 
   const [companyType, setCompanyType] = useState<'multinacional' | 'nacional' | 'custom'>('multinacional');
   const [tagline, setTagline] = useState('TRABALHE EM UMA EMPRESA MULTINACIONAL');
-  const [jobImage, setJobImage] = useState(STOCK_IMAGES[0]);
+  const [jobImage, setJobImage] = useState(libraryImages[0]?.url || "");
   const [footerUrl, setFooterUrl] = useState('metarh.com.br/vagas-metarh');
   
   const [isAffirmative, setIsAffirmative] = useState(false);
@@ -285,35 +182,28 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [currentCaptionIndex, setCurrentCaptionIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
+  const [activeTags, setActiveTags] = useState<ImageTag[]>([]);
+
   const bgImageBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/Fundo_Vagas.jpg");
   const logoBase64 = useBase64Image("https://metarh.com.br/wp-content/uploads/2025/11/metarh-bola-branca.png");
   const jobImageBase64 = useBase64Image(jobImage);
 
   useEffect(() => {
-    if (job.department && job.department !== 'Geral') {
-      setCategory(job.department.toUpperCase());
-    }
+    if (job.department && job.department !== 'Geral') setCategory(job.department.toUpperCase());
     generateCaption(0);
   }, [job]);
 
-  // Recalculate caption if affirmative state or type changes
-  useEffect(() => {
-      generateCaption(0);
-  }, [isAffirmative, affirmativeType]);
+  useEffect(() => { generateCaption(0); }, [isAffirmative, affirmativeType]);
 
   useEffect(() => {
-    if (companyType === 'multinacional') {
-        setTagline('TRABALHE EM UMA EMPRESA MULTINACIONAL');
-    } else if (companyType === 'nacional') {
-        setTagline('TRABALHE EM UMA EMPRESA NACIONAL');
-    }
+    if (companyType === 'multinacional') setTagline('TRABALHE EM UMA EMPRESA MULTINACIONAL');
+    else if (companyType === 'nacional') setTagline('TRABALHE EM UMA EMPRESA NACIONAL');
   }, [companyType]);
 
   const generateCaption = (index: number) => {
       const link = job.url_apply || footerUrl;
       let template;
       let maxIndex;
-
       if (isAffirmative) {
           const templates = AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)'];
           maxIndex = templates.length;
@@ -322,22 +212,12 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
           maxIndex = CAPTION_TEMPLATES.length;
           template = CAPTION_TEMPLATES[index % maxIndex];
       }
-
-      const text = template(job, link);
-      setCaptionText(text);
+      setCaptionText(template(job, link));
       setCurrentCaptionIndex(index);
   };
 
-  const handleNextCaption = () => {
-      const nextIndex = currentCaptionIndex + 1;
-      generateCaption(nextIndex);
-  };
-
-  const handleCopyCaption = () => {
-      navigator.clipboard.writeText(captionText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-  };
+  const handleNextCaption = () => generateCaption(currentCaptionIndex + 1);
+  const handleCopyCaption = () => { navigator.clipboard.writeText(captionText); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   const handleDownload = async () => {
     if (cardRef.current === null) return;
@@ -345,44 +225,31 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       const dataUrl = await toPng(cardRef.current, { 
-        cacheBust: true, 
-        pixelRatio: 2, 
-        width: 1080,
-        height: 1350,
-        skipAutoScale: true,
-        style: { transform: 'none', boxShadow: 'none' }
+        cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
       });
       const link = document.createElement('a');
-      // Use jobId from state to reflect edits
       link.download = `${jobId}-vaga-metarh.png`;
       link.href = dataUrl;
       link.click();
       if (onSuccess) onSuccess();
-    } catch (err) {
-      console.error('Erro ao gerar imagem:', err);
-      alert('Erro ao gerar imagem. Tente novamente.');
-    } finally {
-      setIsGenerating(false);
-    }
+    } catch (err) { console.error('Erro ao gerar imagem:', err); alert('Erro ao gerar imagem. Tente novamente.'); } 
+    finally { setIsGenerating(false); }
   };
 
-  const handleRandomImage = () => {
-    const random = STOCK_IMAGES[Math.floor(Math.random() * STOCK_IMAGES.length)];
-    setJobImage(random);
-  };
+  const toggleTag = (tag: ImageTag) => setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) setJobImage(e.target.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const filteredImages = libraryImages.filter(img => {
+      if (activeTags.length === 0) return true;
+      // Logic: Intersection (AND)
+      return activeTags.every(tag => img.tags.includes(tag));
+  });
 
-  const triggerFileInput = () => fileInputRef.current?.click();
+  const handleRandomize = () => {
+      if (filteredImages.length > 0) {
+          const randomIdx = Math.floor(Math.random() * filteredImages.length);
+          setJobImage(filteredImages[randomIdx].url);
+      }
+  };
 
   const getTitleFontSize = (text: string) => {
     const len = text.length;
@@ -391,48 +258,27 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     if (len > 35) return '48px';
     return '56px';
   };
-
-  const getCategoryFontSize = (text: string) => {
-    if (text.length > 25) return '22px';
-    return '30px';
-  }
-  
-  // Tamanho do título de diversidade (convertendo 24px de mobile/A4 para canvas 1080p ~3x)
-  const getDiversityTitleSize = (text: string) => {
-      const len = text.length;
-      if (len > 20) return '72px'; 
-      return '80px';
-  }
+  const getCategoryFontSize = (text: string) => { if (text.length > 25) return '22px'; return '30px'; }
+  const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
 
   const isReady = (bgImageBase64 || isAffirmative) && logoBase64 && jobImageBase64;
-
-  // Layout Constants
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1350;
-
-  // --- Affirmative Layout Constants ---
   const HEADER_HEIGHT = 569;
   const FOOTER_HEIGHT = 249;
   const PHOTO_WIDTH = 436;
   const PHOTO_TOP = 411;
-  const PHOTO_BOTTOM = 1101; // 1350 - 249
+  const PHOTO_BOTTOM = 1101; 
   const PHOTO_HEIGHT = PHOTO_BOTTOM - PHOTO_TOP;
-  const PHOTO_LEFT = 80; // Margem esquerda padrão
-  
+  const PHOTO_LEFT = 80; 
   const FLOATING_CARD_WIDTH = 424;
   const FLOATING_CARD_HEIGHT = 201;
   const FLOATING_CARD_RIGHT = 60;
-  const FLOATING_CARD_TOP = HEADER_HEIGHT - 60 - FLOATING_CARD_HEIGHT; // 569 - 60 - 201 = 308
+  const FLOATING_CARD_TOP = HEADER_HEIGHT - 60 - FLOATING_CARD_HEIGHT; 
   const LOGO_HEIGHT = 100;
   const LOGO_MARGIN_BOTTOM = 60;
-  
-  // Calculating the exact top position of the logo to align the badge
-  const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; // 308 - 60 - 100 = 148
-
-  // Logic to determine total captions available
-  const totalCaptions = isAffirmative 
-      ? (AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)']).length
-      : CAPTION_TEMPLATES.length;
+  const LOGO_TOP = FLOATING_CARD_TOP - LOGO_MARGIN_BOTTOM - LOGO_HEIGHT; 
+  const totalCaptions = isAffirmative ? (AFFIRMATIVE_CAPTIONS[affirmativeType] || AFFIRMATIVE_CAPTIONS['Afirmativa (Geral)']).length : CAPTION_TEMPLATES.length;
 
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50 min-h-screen relative items-start">
@@ -440,590 +286,105 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
       {/* Editor Sidebar */}
       <div className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1 p-4 lg:p-8 relative z-10">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
-                <Monitor className="w-6 h-6 mr-2 text-brand-600" />
-                Editor de Post
-            </h2>
-
+            <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center"><Monitor className="w-6 h-6 mr-2 text-brand-600" />Editor de Post</h2>
             <div className="space-y-6 pr-2">
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título da Vaga</label>
-                    <textarea 
-                        value={title} 
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="w-full p-4 border border-slate-200 rounded-3xl text-sm font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
-                        rows={2}
-                    />
-                </div>
+                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título da Vaga</label><textarea value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-4 border border-slate-200 rounded-3xl text-sm font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none" rows={2}/></div>
+                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100"><label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center"><Type className="w-3 h-3 mr-1" /> Frase de Efeito</label><div className="flex gap-2 mb-3"><button onClick={() => setCompanyType('multinacional')} className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'multinacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}>Multinacional</button><button onClick={() => setCompanyType('nacional')} className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'nacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}>Nacional</button></div><input type="text" value={tagline} onChange={(e) => { setCompanyType('custom'); setTagline(e.target.value); }} className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"/></div>
+                <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula)</label><input type="text" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 border border-slate-200 rounded-full text-sm font-sans font-bold"/></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código</label><div className="relative"><Hash className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" /><input type="text" value={jobId} onChange={(e) => setJobId(e.target.value)} className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm"/></div></div></div>
+                <div className={`p-4 rounded-3xl border transition-colors duration-300 ${isAffirmative ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-100'}`}><div className="flex items-center justify-between mb-2"><label className={`block text-xs font-bold uppercase flex items-center ${isAffirmative ? 'text-brand-600' : 'text-slate-500'}`}><HeartHandshake className="w-3 h-3 mr-1" /> Vaga Afirmativa?</label><div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={isAffirmative} onChange={(e) => setIsAffirmative(e.target.checked)} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-brand-500"/><label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200 ${isAffirmative ? 'bg-brand-500' : 'bg-slate-300'}`}></label></div></div>{isAffirmative && (<div className="animate-in fade-in slide-in-from-top-2 duration-200"><GeneratorSelect label="Público da Vaga" value={affirmativeType} options={DIVERSITY_OPTIONS} onChange={setAffirmativeType}/></div>)}</div>
+                <div className="grid grid-cols-3 gap-2"><div className="col-span-1"><GeneratorSelect label="Contrato" value={tag1} options={CONTRACT_OPTIONS} onChange={setTag1}/></div><div className="col-span-1"><GeneratorSelect label="Modalidade" value={tag2} options={MODALITY_OPTIONS} onChange={setTag2}/></div><div className="col-span-1"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Local</label><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-full text-xs"/></div></div>
+                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link Rodapé</label><div className="relative"><LinkIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" /><input type="text" value={footerUrl} onChange={(e) => setFooterUrl(e.target.value)} className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm text-slate-600"/></div></div>
 
-                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center">
-                        <Type className="w-3 h-3 mr-1" /> Frase de Efeito
-                    </label>
-                    <div className="flex gap-2 mb-3">
-                        <button 
-                            onClick={() => setCompanyType('multinacional')}
-                            className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'multinacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}
-                        >
-                            Multinacional
-                        </button>
-                        <button 
-                            onClick={() => setCompanyType('nacional')}
-                            className={`flex-1 py-2 px-2 rounded-full text-xs font-bold border transition-colors ${companyType === 'nacional' ? 'bg-brand-100 border-brand-300 text-brand-800' : 'bg-white border-slate-200 text-slate-500'}`}
-                        >
-                            Nacional
-                        </button>
+                {/* --- IMAGE LIBRARY SECTION --- */}
+                <div className="border border-slate-200 rounded-3xl p-4">
+                    <div className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center"><span>Banco de Imagens</span></div>
+                    
+                    {/* Filters */}
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                        <div className="w-full flex justify-between items-center mb-1"><div className="flex items-center gap-1"><Filter className="w-3 h-3 text-slate-400" /><span className="text-[10px] text-slate-400 font-bold uppercase">Filtrar:</span></div><button onClick={handleRandomize} className="text-[10px] text-brand-600 font-bold flex items-center hover:bg-brand-50 px-2 py-0.5 rounded-full transition-colors" title="Escolher imagem aleatória com base nos filtros"><Shuffle className="w-3 h-3 mr-1" /> Surpreenda-me</button></div>
+                        {AVAILABLE_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${activeTags.includes(tag) ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{tag}</button>))}
+                        {activeTags.length > 0 && (<button onClick={() => setActiveTags([])} className="px-2 py-1 text-[10px] text-red-500 font-bold hover:underline">Limpar</button>)}
                     </div>
-                    <input 
-                        type="text" 
-                        value={tagline} 
-                        onChange={(e) => {
-                            setCompanyType('custom');
-                            setTagline(e.target.value);
-                        }}
-                        className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"
-                    />
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula)</label>
-                        <input 
-                            type="text" 
-                            value={category} 
-                            onChange={(e) => setCategory(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-full text-sm font-sans font-bold"
-                        />
+                    {/* Grid */}
+                    <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                         {filteredImages.map((img) => (
+                             <div key={img.id} onClick={() => setJobImage(img.url)} className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 relative group ${jobImage === img.url ? 'border-brand-500 ring-2 ring-brand-200' : 'border-transparent hover:border-slate-300'}`}>
+                                 <img src={img.url} className="w-full h-full object-cover" loading="lazy" />
+                                 {jobImage === img.url && (<div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center z-10"><CheckCircle className="w-6 h-6 text-white drop-shadow-md" /></div>)}
+                             </div>
+                         ))}
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código</label>
-                        <div className="relative">
-                            <Hash className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                            <input 
-                                type="text" 
-                                value={jobId} 
-                                onChange={(e) => setJobId(e.target.value)}
-                                className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm"
-                            />
-                        </div>
-                    </div>
-                </div>
-                
-                 <div className={`p-4 rounded-3xl border transition-colors duration-300 ${isAffirmative ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-100'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                        <label className={`block text-xs font-bold uppercase flex items-center ${isAffirmative ? 'text-brand-600' : 'text-slate-500'}`}>
-                            <HeartHandshake className="w-3 h-3 mr-1" /> Vaga Afirmativa?
-                        </label>
-                        <div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
-                            <input 
-                                type="checkbox" 
-                                checked={isAffirmative}
-                                onChange={(e) => setIsAffirmative(e.target.checked)}
-                                className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-brand-500"
-                            />
-                            <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200 ${isAffirmative ? 'bg-brand-500' : 'bg-slate-300'}`}></label>
-                        </div>
-                    </div>
-                    {isAffirmative && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                             <GeneratorSelect 
-                                label="Público da Vaga"
-                                value={affirmativeType}
-                                options={DIVERSITY_OPTIONS}
-                                onChange={setAffirmativeType}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-1">
-                        <GeneratorSelect 
-                            label="Contrato"
-                            value={tag1}
-                            options={CONTRACT_OPTIONS}
-                            onChange={setTag1}
-                        />
-                    </div>
-                    <div className="col-span-1">
-                        <GeneratorSelect 
-                            label="Modalidade"
-                            value={tag2}
-                            options={MODALITY_OPTIONS}
-                            onChange={setTag2}
-                        />
-                    </div>
-                    <div className="col-span-1">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Local</label>
-                        <input 
-                            type="text" 
-                            value={location} 
-                            onChange={(e) => setLocation(e.target.value)}
-                            className="w-full p-2.5 border border-slate-200 rounded-full text-xs"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link Rodapé</label>
-                    <div className="relative">
-                        <LinkIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="text" 
-                            value={footerUrl} 
-                            onChange={(e) => setFooterUrl(e.target.value)}
-                            className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm text-slate-600"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Foto da Vaga</label>
-                    <div className="flex gap-2 flex-col">
-                        <div className="flex gap-2">
-                             <button 
-                                onClick={triggerFileInput}
-                                className="flex-1 py-3 bg-brand-50 border border-brand-200 text-brand-700 rounded-full text-sm font-bold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <Upload className="w-4 h-4" />
-                                Subir Imagem
-                            </button>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                                accept="image/*"
-                                className="hidden"
-                            />
-                            <button 
-                                onClick={handleRandomImage}
-                                className="px-6 bg-slate-100 border border-slate-200 rounded-full hover:bg-slate-200 transition-colors"
-                                title="Trocar imagem aleatória"
-                            >
-                                <RefreshCw className="w-5 h-5 text-slate-600" />
-                            </button>
-                        </div>
-                    </div>
+                     {filteredImages.length === 0 && (<div className="text-center py-4 text-slate-400 text-xs">Nenhuma imagem encontrada para estes filtros.</div>)}
                 </div>
 
                 <div className="bg-brand-50 rounded-3xl p-5 border border-brand-100 mt-4">
-                    <div className="flex justify-between items-center mb-3">
-                         <label className="block text-xs font-bold text-brand-700 uppercase">
-                            Legenda ({(currentCaptionIndex % totalCaptions) + 1}/{totalCaptions})
-                        </label>
-                        <button 
-                            onClick={handleNextCaption}
-                            className="px-3 py-1.5 bg-white border border-brand-200 text-brand-700 rounded-full text-[10px] font-bold hover:bg-brand-100 transition-colors flex items-center gap-1"
-                        >
-                            <RefreshCw className="w-3 h-3" />
-                            Próxima Ideia
-                        </button>
-                    </div>
-                    <textarea 
-                        value={captionText}
-                        onChange={(e) => setCaptionText(e.target.value)}
-                        className="w-full p-4 text-xs border border-brand-200 rounded-3xl text-slate-600 h-32 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none bg-white"
-                    />
-                    <button 
-                        onClick={handleCopyCaption}
-                        className="mt-3 w-full py-2.5 bg-white border border-brand-200 text-brand-700 rounded-full text-xs font-bold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                        {copied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {copied ? "Copiado!" : "Copiar Legenda"}
-                    </button>
+                    <div className="flex justify-between items-center mb-3"><label className="block text-xs font-bold text-brand-700 uppercase">Legenda ({(currentCaptionIndex % totalCaptions) + 1}/{totalCaptions})</label><button onClick={handleNextCaption} className="px-3 py-1.5 bg-white border border-brand-200 text-brand-700 rounded-full text-[10px] font-bold hover:bg-brand-100 transition-colors flex items-center gap-1"><RefreshCw className="w-3 h-3" />Próxima Ideia</button></div>
+                    <textarea value={captionText} onChange={(e) => setCaptionText(e.target.value)} className="w-full p-4 text-xs border border-brand-200 rounded-3xl text-slate-600 h-32 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none bg-white"/>
+                    <button onClick={handleCopyCaption} className="mt-3 w-full py-2.5 bg-white border border-brand-200 text-brand-700 rounded-full text-xs font-bold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2">{copied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}{copied ? "Copiado!" : "Copiar Legenda"}</button>
                 </div>
             </div>
 
             <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 gap-3">
-                <button 
-                    onClick={onClose}
-                    className="py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-full hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-                >
-                    <ChevronLeft className="w-5 h-5" />
-                    Voltar
-                </button>
-                <button 
-                    onClick={handleDownload}
-                    disabled={isGenerating || !isReady}
-                    className="py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                    {isGenerating ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Gerando...
-                        </>
-                    ) : !isReady ? (
-                        <>
-                           <Loader2 className="w-5 h-5 animate-spin" />
-                           Carregando...
-                        </>
-                    ) : (
-                        <>
-                            <Download className="w-5 h-5" />
-                            Baixar Imagem
-                        </>
-                    )}
-                </button>
+                <button onClick={onClose} className="py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-full hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"><ChevronLeft className="w-5 h-5" />Voltar</button>
+                <button onClick={handleDownload} disabled={isGenerating || !isReady} className="py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-full shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">{isGenerating ? (<><Loader2 className="w-5 h-5 animate-spin" />Gerando...</>) : !isReady ? (<><Loader2 className="w-5 h-5 animate-spin" />Carregando...</>) : (<><Download className="w-5 h-5" />Baixar Imagem</>)}</button>
             </div>
         </div>
       </div>
 
       {/* Preview Area */}
       <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-200/50 border-b lg:border-b-0 lg:border-l border-slate-300 p-4 order-1 lg:order-2 min-h-[500px] lg:fixed lg:right-0 lg:top-0 lg:h-screen z-20">
-        <div 
-            style={{ 
-                transform: 'scale(0.38)',
-                transformOrigin: 'center center',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' 
-            }}
-        >
+        <div style={{ transform: 'scale(0.38)', transformOrigin: 'center center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             {/* ================= CANVAS START ================= */}
-            <div 
-                ref={cardRef}
-                className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900"
-                style={{ 
-                    width: `${CANVAS_WIDTH}px`, 
-                    height: `${CANVAS_HEIGHT}px`,
-                }}
-            >
-                {/* ================= AFFIRMATIVE LAYOUT ================= */}
+            <div ref={cardRef} className="relative overflow-hidden flex flex-col shrink-0 bg-slate-900" style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}>
                 {isAffirmative ? (
                     <div className="relative w-full h-full flex flex-col bg-white">
-                        
                         {/* 1. Header (Purple) */}
-                        <div 
-                            className="absolute top-0 left-0 w-full z-10"
-                            style={{ 
-                                backgroundColor: COLORS.affirmativePurple,
-                                height: `${HEADER_HEIGHT}px`, 
-                                borderBottomLeftRadius: '80px',
-                                borderBottomRightRadius: '80px',
-                            }}
-                        >
-                            {/* MetaRH Logo - Centered above Card */}
-                            <div 
-                                className="absolute flex items-center justify-center"
-                                style={{
-                                    right: `${FLOATING_CARD_RIGHT}px`,
-                                    width: `${FLOATING_CARD_WIDTH}px`,
-                                    top: `${LOGO_TOP}px`, // Use calculated LOGO_TOP
-                                    height: `${LOGO_HEIGHT}px`
-                                }}
-                            >
-                                {logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}
-                            </div>
-
-                            {/* Floating Card - Below Logo */}
-                            <div 
-                                className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6"
-                                style={{
-                                    width: `${FLOATING_CARD_WIDTH}px`,
-                                    height: `${FLOATING_CARD_HEIGHT}px`,
-                                    right: `${FLOATING_CARD_RIGHT}px`,
-                                    top: `${FLOATING_CARD_TOP}px`
-                                }}
-                            >
-                                <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
-                                    {companyType === 'custom' ? (
-                                         <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
-                                    ) : (
-                                        <>
-                                            <span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span>
-                                            <span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span>
-                                        </>
-                                    )}
-                                </h2>
-                                <div 
-                                    className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]"
-                                    style={{ backgroundColor: COLORS.affirmativeBox }}
-                                >
-                                    <span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">
-                                        {category}
-                                    </span>
-                                </div>
+                        <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
+                            <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}</div>
+                            <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
+                                <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">{companyType === 'custom' ? (<span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>) : (<><span style={{ color: COLORS.affirmativeText1 }}>Trabalhe em uma<br/>empresa </span><span style={{ color: COLORS.affirmativeText2 }}>{companyType.toUpperCase()}</span></>)}</h2>
+                                <div className="rounded-[18px] flex items-center justify-center w-[353px] h-[51px]" style={{ backgroundColor: COLORS.affirmativeBox }}><span className="font-sans font-bold text-white uppercase text-[24px] truncate px-4">{category}</span></div>
                             </div>
                         </div>
-
                         {/* 2. Photo Section (Left) */}
-                        <div 
-                            className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200"
-                            style={{
-                                width: `${PHOTO_WIDTH}px`,
-                                height: `${PHOTO_HEIGHT}px`,
-                                top: `${PHOTO_TOP}px`,
-                                left: `${PHOTO_LEFT}px`,
-                                borderRadius: '218px 218px 0 0' // Arch shape
-                            }}
-                        >
-                             {jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}
-
-                             {/* Job Code - Centered INSIDE photo at bottom */}
-                             <div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30">
-                                 <div className="bg-white px-5 py-1 rounded-full shadow-md">
-                                    <span className="font-sans font-bold text-[24px] text-black">
-                                        Cód.: {jobId}
-                                    </span>
-                                 </div>
-                             </div>
-                        </div>
-
-                         {/* 3. Diversity Title & Badge (Above Photo) */}
-                         {/* Badge aligned with LOGO_TOP */}
-                         <div 
-                            className="absolute z-20 flex flex-col items-center justify-center"
-                            style={{
-                                width: `${PHOTO_WIDTH}px`,
-                                left: `${PHOTO_LEFT}px`,
-                                top: `${LOGO_TOP}px`, 
-                            }}
-                         >
-                             <div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent">
-                                <span className="font-sans font-medium text-white text-[39px] tracking-wide">
-                                   Vaga Afirmativa
-                                </span>
-                             </div>
-                         </div>
-
-                         {/* Diversity Title - Positioned below Badge with REDUCED gap and tighter line height */}
-                         <div
-                             className="absolute z-20 flex flex-col items-center justify-center"
-                             style={{
-                                 width: `${PHOTO_WIDTH}px`,
-                                 left: `${PHOTO_LEFT}px`,
-                                 // Badge height approx 60px + increased gap (30px)
-                                 top: `${LOGO_TOP + 60 + 30}px`,
-                             }}
-                         >
-                             <h1 
-                                className="font-sans font-black text-white text-center drop-shadow-md"
-                                style={{ 
-                                    fontSize: getDiversityTitleSize(affirmativeType),
-                                    lineHeight: '0.85' // Tighter line height for broken text
-                                }}
-                             >
-                                 {affirmativeType}
-                             </h1>
-                         </div>
-
-
-                        {/* 4. White Body Content (Right Side) */}
-                        <div 
-                            className="absolute z-10 flex flex-col items-center"
-                            style={{
-                                top: `${HEADER_HEIGHT}px`, // Start below header
-                                bottom: `${FOOTER_HEIGHT}px`, // End above footer
-                                left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, // Right of photo
-                                right: 0,
-                                justifyContent: 'center', // Vertically center in white space
-                            }}
-                        >
-                             {/* Job Title */}
-                             <h2 
-                                className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]"
-                                style={{ fontSize: getTitleFontSize(title) }}
-                            >
-                                {title}
-                            </h2>
-
-                            {/* Pills Group */}
+                        <div className="absolute z-20 overflow-hidden shadow-2xl bg-slate-200" style={{ width: `${PHOTO_WIDTH}px`, height: `${PHOTO_HEIGHT}px`, top: `${PHOTO_TOP}px`, left: `${PHOTO_LEFT}px`, borderRadius: '218px 218px 0 0' }}>{jobImageBase64 && <img src={jobImageBase64} className="w-full h-full object-cover" />}<div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div></div>
+                        {/* 3. Diversity Title */}
+                        <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP}px` }}><div className="px-6 py-1.5 rounded-full border-2 border-white inline-flex items-center justify-center bg-transparent"><span className="font-sans font-medium text-white text-[39px] tracking-wide">Vaga Afirmativa</span></div></div>
+                        <div className="absolute z-20 flex flex-col items-center justify-center" style={{ width: `${PHOTO_WIDTH}px`, left: `${PHOTO_LEFT}px`, top: `${LOGO_TOP + 60 + 30}px` }}><h1 className="font-sans font-black text-white text-center drop-shadow-md" style={{ fontSize: getDiversityTitleSize(affirmativeType), lineHeight: '0.85' }}>{affirmativeType}</h1></div>
+                        {/* 4. Body Content */}
+                        <div className="absolute z-10 flex flex-col items-center" style={{ top: `${HEADER_HEIGHT}px`, bottom: `${FOOTER_HEIGHT}px`, left: `${PHOTO_LEFT + PHOTO_WIDTH}px`, right: 0, justifyContent: 'center' }}>
+                            <h2 className="font-sans font-extrabold text-[#1a1a1a] leading-tight text-center w-full px-8 mb-[60px] mt-[40px]" style={{ fontSize: getTitleFontSize(title) }}>{title}</h2>
                             <div className="flex flex-col items-center gap-[28px]">
-                                {/* Row 1: Contract & Modality */}
-                                <div className="flex gap-4">
-                                    {tag1 && (
-                                        <div 
-                                            className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]"
-                                            style={{ backgroundColor: COLORS.affirmativeContract }}
-                                        >
-                                            <span className="font-sans font-bold text-[24px] uppercase text-white">
-                                                {tag1}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {tag2 && (
-                                        <div 
-                                            className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]"
-                                            style={{ backgroundColor: COLORS.affirmativeModality }}
-                                        >
-                                            <span className="font-sans font-bold text-[24px] uppercase text-white">
-                                                {tag2}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Row 2: Location */}
-                                {location && (
-                                    <div 
-                                        className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]"
-                                        style={{ backgroundColor: COLORS.affirmativeLocation }}
-                                    >
-                                        <span className="font-sans font-bold text-[24px] uppercase text-white truncate">
-                                            {location}
-                                        </span>
-                                    </div>
-                                )}
+                                <div className="flex gap-4">{tag1 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeContract }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag1}</span></div>)}{tag2 && (<div className="px-8 py-3 rounded-full shadow-md flex items-center justify-center min-w-[200px]" style={{ backgroundColor: COLORS.affirmativeModality }}><span className="font-sans font-bold text-[24px] uppercase text-white">{tag2}</span></div>)}</div>
+                                {location && (<div className="px-12 py-3 rounded-full shadow-md flex items-center justify-center min-w-[300px]" style={{ backgroundColor: COLORS.affirmativeLocation }}><span className="font-sans font-bold text-[24px] uppercase text-white truncate">{location}</span></div>)}
                             </div>
                         </div>
-
-                        {/* 5. Footer (Purple) */}
-                        <div 
-                            className="absolute bottom-0 left-0 w-full z-30 flex"
-                            style={{ 
-                                backgroundColor: COLORS.affirmativePurple,
-                                height: `${FOOTER_HEIGHT}px`,
-                                borderTopLeftRadius: '80px',
-                                borderTopRightRadius: '80px',
-                                // Align to top (near photo)
-                                alignItems: 'flex-start',
-                                justifyContent: 'center',
-                                paddingTop: '30px'
-                            }}
-                        >
-                             {/* Call to Action - Single Line Centered Horizontally */}
-                             <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full">
-                                 <div className="flex items-center gap-3">
-                                    <span className="font-sans font-medium text-[28px] text-white opacity-90">
-                                        Candidate-se gratuitamente em
-                                    </span>
-                                    <span className="font-sans font-bold text-[32px] text-white">
-                                        {footerUrl}
-                                    </span>
-                                    {/* Arrow Lowered */}
-                                    <div className="transform rotate-12 translate-y-[10px]">
-                                        <svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                                            <path d="M13 13l6 6"></path>
-                                        </svg>
-                                    </div>
-                                 </div>
-                             </div>
+                        {/* 5. Footer */}
+                        <div className="absolute bottom-0 left-0 w-full z-30 flex" style={{ backgroundColor: COLORS.affirmativePurple, height: `${FOOTER_HEIGHT}px`, borderTopLeftRadius: '80px', borderTopRightRadius: '80px', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '30px' }}>
+                             <div className="flex flex-row items-center justify-center gap-3 text-center px-10 w-full"><div className="flex items-center gap-3"><span className="font-sans font-medium text-[28px] text-white opacity-90">Candidate-se gratuitamente em</span><span className="font-sans font-bold text-[32px] text-white">{footerUrl}</span><div className="transform rotate-12 translate-y-[10px]"><svg width="36" height="36" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div>
                         </div>
-
                     </div>
                 ) : (
                     /* ================= STANDARD LAYOUT ================= */
                     <>
-                        {/* Background Image Layer */}
-                        {bgImageBase64 && (
-                            <img 
-                                src={bgImageBase64}
-                                alt="Background"
-                                className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
-                            />
-                        )}
-                        
-                        {/* Standard Header (White) */}
-                        <div 
-                            className="relative w-full z-10 bg-white"
-                            style={{ 
-                                height: '42%',
-                                borderBottomLeftRadius: '80px',
-                                borderBottomRightRadius: '80px',
-                            }}
-                        >
-                            <div className="absolute inset-0 flex justify-between" style={{
-                                paddingTop: '145px',
-                                paddingLeft: '135px',
-                                paddingRight: '135px',
-                                paddingBottom: '40px' 
-                            }}>
-                                {/* Left Content */}
+                        {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />)}
+                        <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
+                            <div className="absolute inset-0 flex justify-between" style={{ paddingTop: '145px', paddingLeft: '135px', paddingRight: '135px', paddingBottom: '40px' }}>
                                 <div className="flex flex-col items-start w-full">
-                                    <div className="relative leading-none mb-0 flex-shrink-0">
-                                        <h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">
-                                            #Temos
-                                        </h1>
-                                        <h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>
-                                            Vagas
-                                        </h1>
-                                    </div>
-                                    <div className="w-full mt-[76px]">
-                                        <h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>
-                                            {tagline}
-                                        </h2>
-                                    </div>
-                                    <div className="mt-[50px] w-full flex flex-col gap-4 items-start"> 
-                                        <div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}>
-                                            <span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>
-                                                {category}
-                                            </span>
-                                        </div>
-                                    </div>
+                                    <div className="relative leading-none mb-0 flex-shrink-0"><h1 className="font-condensed italic font-bold text-[100px] tracking-tighter text-[#1a1a1a] transform -translate-x-2">#Temos</h1><h1 className="font-condensed italic font-black text-[130px] text-[#1a1a1a] -mt-10 leading-[0.75] transform -translate-x-2 translate-y-[12px]" style={{ letterSpacing: '0.01em' }}>Vagas</h1></div>
+                                    <div className="w-full mt-[76px]"><h2 className="font-condensed italic font-bold text-[32px] uppercase leading-tight w-full" style={{ color: COLORS.vibrantPurple }}>{tagline}</h2></div>
+                                    <div className="mt-[50px] w-full flex flex-col gap-4 items-start"><div className="px-8 py-3 rounded-full shadow-lg inline-flex items-center justify-center" style={{ backgroundColor: COLORS.pink, minWidth: '200px', maxWidth: '450px' }}><span className="font-sans font-bold text-white uppercase tracking-wide text-center leading-tight truncate" style={{ fontSize: getCategoryFontSize(category) }}>{category}</span></div></div>
                                 </div>
-
-                                {/* Right Photo */}
-                                <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}>
-                                    <span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">
-                                        Cód.: {jobId}
-                                    </span>
-                                    <div 
-                                        className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0"
-                                        style={{ 
-                                            width: '448px',
-                                            height: '534px',
-                                            borderRadius: '32px',
-                                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                                        }}
-                                    >
-                                        {jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}
-                                    </div>
-                                </div>
+                                <div className="flex flex-col items-center relative z-10 flex-shrink-0" style={{ width: '448px' }}><span className="font-sans font-medium text-[27px] text-black mb-3 block text-center w-full">Cód.: {jobId}</span><div className="relative overflow-hidden shadow-2xl shrink-0 flex-shrink-0" style={{ width: '448px', height: '534px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>{jobImageBase64 && <img src={jobImageBase64} alt="Foto da Vaga" className="w-full h-full object-cover block" />}</div></div>
                             </div>
                         </div>
-
-                        {/* Standard Body (Purple/Dark) */}
                         <div className="flex-1 relative flex flex-col items-center w-full z-0">
                             <div className="flex flex-col items-center w-full px-[135px]" style={{ marginTop: '240px' }}>
-                                <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>
-                                    {title}
-                                </h1>
-                                <div className="flex flex-wrap justify-center gap-5 w-full">
-                                    {tag1 && (
-                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
-                                            <span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">
-                                                {tag1}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {tag2 && (
-                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]">
-                                            <span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>
-                                                {tag2}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {location && (
-                                        <div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]">
-                                            <span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>
-                                                {location}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+                                <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>{title}</h1>
+                                <div className="flex flex-wrap justify-center gap-5 w-full">{tag1 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">{tag1}</span></div>)}{tag2 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>{tag2}</span></div>)}{location && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]"><span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>{location}</span></div>)}</div>
                             </div>
-
-                            <div className="absolute bottom-0 w-full px-[135px] pb-[145px]">
-                                <div className="w-full h-[1px] bg-white opacity-30 mb-10"></div>
-                                <div className="flex items-center justify-between w-full">
-                                    <div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">
-                                        {logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}
-                                    </div>
-                                    <div className="flex flex-col items-end text-right relative mr-12">
-                                        <span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">
-                                            Candidate-se gratuitamente em
-                                        </span>
-                                        <span className="text-white font-sans font-bold text-[27px]">
-                                            {footerUrl}
-                                        </span>
-                                        <div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg">
-                                            <svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                                                <path d="M13 13l6 6"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <div className="absolute bottom-0 w-full px-[135px] pb-[145px]"><div className="w-full h-[1px] bg-white opacity-30 mb-10"></div><div className="flex items-center justify-between w-full"><div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">{logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}</div><div className="flex flex-col items-end text-right relative mr-12"><span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">Candidate-se gratuitamente em</span><span className="text-white font-sans font-bold text-[27px]">{footerUrl}</span><div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg"><svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div></div>
                         </div>
                     </>
                 )}

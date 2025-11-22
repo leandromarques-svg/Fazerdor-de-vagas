@@ -1,5 +1,4 @@
 
-
 export enum JobType {
   FULL_TIME = 'Tempo Integral',
   PART_TIME = 'Meio Período',
@@ -27,4 +26,13 @@ export interface JobFilterState {
   location: string;
   jobCode: string;
   specificDate: string; // YYYY-MM-DD format
+}
+
+export type ImageTag = 'Homem' | 'Mulher' | 'Negros' | '50+' | 'LGBTQIAPN+' | 'PCD' | 'Indígenas' | 'Jovem';
+
+export interface LibraryImage {
+    id: string;
+    url: string;
+    tags: ImageTag[];
+    isCustom?: boolean; // Flag para identificar imagens do usuário
 }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SelectyJobResponse } from '../types';
-import { MapPin, Briefcase, Hash, Image as ImageIcon, Calendar } from 'lucide-react';
+import { MapPin, Briefcase, Hash, Image as ImageIcon, Calendar, Eye } from 'lucide-react';
 
 interface JobCardProps {
   job: SelectyJobResponse;
@@ -59,18 +59,30 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onShowDetails, onGenerate
         </div>
       </div>
 
-      <div className="px-7 pb-7 pt-0 mt-auto">
+      <div className="px-7 pb-7 pt-0 mt-auto flex gap-3">
+        <button 
+            onClick={(e) => {
+                e.stopPropagation();
+                onShowDetails(job);
+            }}
+            className="flex-1 bg-white text-brand-600 border border-brand-200 hover:bg-brand-50 hover:border-brand-300 py-3 px-3 rounded-2xl font-bold text-sm flex items-center justify-center transition-all duration-300 shadow-sm"
+            title="Ver Detalhes"
+        >
+            <Eye className="w-4 h-4 mr-2" />
+            Detalhes
+        </button>
+
         {onGenerateImage && (
             <button 
                 onClick={(e) => {
                     e.stopPropagation();
                     onGenerateImage(job);
                 }}
-                className="w-full group-hover:bg-brand-600 group-hover:text-white bg-white text-brand-600 border border-brand-200 group-hover:border-brand-600 py-3 px-4 rounded-full font-bold text-sm flex items-center justify-center transition-all duration-300 shadow-sm group-hover:shadow-md"
-                title="Criar imagem para redes sociais"
+                className="flex-1 bg-brand-600 text-white border border-transparent hover:bg-brand-700 py-3 px-3 rounded-2xl font-bold text-sm flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md"
+                title="Criar Post Social"
             >
                 <ImageIcon className="w-4 h-4 mr-2" />
-                Criar Post Social
+                Criar Post
             </button>
         )}
       </div>

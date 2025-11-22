@@ -1,14 +1,15 @@
 
 import React, { useEffect } from 'react';
 import { SelectyJobResponse } from '../types';
-import { X, MapPin, Briefcase, Clock, ExternalLink, Building2, Hash, ChevronLeft } from 'lucide-react';
+import { X, MapPin, Briefcase, Clock, ExternalLink, Building2, Hash, ChevronLeft, Image as ImageIcon } from 'lucide-react';
 
 interface JobModalProps {
   job: SelectyJobResponse;
   onClose: () => void;
+  onGenerateImage?: (job: SelectyJobResponse) => void;
 }
 
-export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
+export const JobModal: React.FC<JobModalProps> = ({ job, onClose, onGenerateImage }) => {
   
   // Ao montar, garantir que estamos no topo (útil para transições)
   useEffect(() => {
@@ -102,28 +103,33 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
                 )}
             </div>
 
-            {/* Rodapé de Ação (Sempre ao final) */}
-            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 text-center">
-                <h4 className="text-2xl font-bold text-slate-900 mb-3">Tem interesse nesta oportunidade?</h4>
-                <p className="text-slate-500 mb-8 max-w-xl mx-auto leading-relaxed">
-                    Se o seu perfil corresponde ao que estamos buscando, envie seu currículo e venha fazer parte da nossa história.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl mx-auto">
+            {/* Rodapé de Ação (Limpo) */}
+            <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-4xl mx-auto">
                     <button
                         onClick={onClose}
-                        className="w-full sm:w-auto px-8 py-4 rounded-full border border-slate-200 text-slate-600 font-bold hover:bg-white hover:border-slate-300 transition-colors text-sm order-2 sm:order-1"
+                        className="w-full sm:w-auto px-8 py-4 rounded-full border border-slate-200 text-slate-600 font-bold hover:bg-white hover:border-slate-300 transition-colors text-sm order-3 sm:order-1"
                     >
-                        Voltar para lista
+                        Voltar
                     </button>
+                    
+                    {onGenerateImage && (
+                        <button
+                            onClick={() => onGenerateImage(job)}
+                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-brand-600 text-white font-bold shadow-lg shadow-brand-600/20 hover:bg-brand-700 transition-colors text-sm flex items-center justify-center order-1 sm:order-2"
+                        >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            Criar Post Social
+                        </button>
+                    )}
 
                     <a
                         href={job.url_apply || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full sm:w-auto flex items-center justify-center px-10 py-4 rounded-full bg-brand-600 text-white font-bold shadow-lg shadow-brand-600/20 hover:bg-brand-700 hover:shadow-brand-600/30 transform active:scale-[0.98] transition-all text-sm order-1 sm:order-2"
+                        className="w-full sm:w-auto flex items-center justify-center px-10 py-4 rounded-full border border-brand-200 text-brand-600 font-bold hover:bg-brand-50 transition-all text-sm order-2 sm:order-3"
                     >
-                        Candidatar-se agora
+                        Ver vaga no Selecty
                         <ExternalLink className="w-4 h-4 ml-2" />
                     </a>
                 </div>
