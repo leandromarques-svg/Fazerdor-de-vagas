@@ -302,20 +302,31 @@ export default function App() {
       setIsProcessingImages(true);
       setNewImageTags([]);
       const processed: string[] = [];
-      try {
-          for (let i = 0; i < files.length; i++) {
-              const file = files[i];
-              if (!file.type.startsWith('image/')) continue;
+      let errorCount = 0;
 
-              setProcessingStatus(`Processando imagem ${i + 1} de ${files.length}...`);
-              await new Promise(resolve => setTimeout(resolve, 10)); 
-              const base64 = await compressImage(file);
-              processed.push(base64);
+      for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (!file.type.startsWith('image/')) continue;
+
+          setProcessingStatus(`Processando imagem ${i + 1} de ${files.length}...`);
+          try {
+            await new Promise(resolve => setTimeout(resolve, 10)); 
+            const base64 = await compressImage(file);
+            processed.push(base64);
+          } catch (e) { 
+              console.error(`Erro ao processar imagem ${file.name}:`, e);
+              errorCount++;
           }
-          if (processed.length > 0) {
-              setTempUploadImages(processed);
-          }
-      } catch (e) { alert("Erro ao processar as imagens."); } finally { setIsProcessingImages(false); setProcessingStatus(''); }
+      }
+      
+      if (processed.length > 0) {
+          setTempUploadImages(processed);
+      } else if (errorCount > 0) {
+          alert("Algumas imagens não puderam ser processadas. Tente usar arquivos JPG ou PNG.");
+      }
+
+      setIsProcessingImages(false); 
+      setProcessingStatus('');
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

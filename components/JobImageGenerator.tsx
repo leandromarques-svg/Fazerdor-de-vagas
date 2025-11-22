@@ -176,7 +176,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const [location, setLocation] = useState(job.city ? `${job.city}-${job.state}` : 'Brasil');
   const [jobId, setJobId] = useState(String(job.id));
   const [category, setCategory] = useState('Setor Administrativo'); 
-  const [tagline, setTagline] = useState('Trabalhe onde seu talento ganha espaço');
+  const tagline = 'Trabalhe onde seu talento ganha espaço';
   const [jobImage, setJobImage] = useState(libraryImages.find(img => img.tags && img.tags.length > 0)?.url || "");
   const [footerUrl, setFooterUrl] = useState('metarh.com.br/vagas-metarh');
   
@@ -347,9 +347,9 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   
   const getCategoryFontSize = (text: string) => {
       const len = text.length;
-      if (len > 35) return '17px'; // Reduced by 1 point roughly
-      if (len > 25) return '21px'; // Reduced
-      return '29px'; // Reduced
+      if (len > 35) return '16px'; // Reduced by ~1pt
+      if (len > 25) return '20px'; // Reduced
+      return '28px'; // Reduced
   }
   
   const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
@@ -382,7 +382,6 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center"><Monitor className="w-6 h-6 mr-2 text-brand-600" />Editor de Post</h2>
             <div className="space-y-6 pr-2">
                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título da Vaga</label><textarea value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-4 border border-slate-200 rounded-3xl text-sm font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none" rows={2}/></div>
-                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100"><label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center"><Type className="w-3 h-3 mr-1" /> Frase de Efeito</label><input type="text" value={tagline} onChange={(e) => { setTagline(e.target.value); }} className="w-full p-3 border border-slate-200 rounded-full text-sm font-medium"/></div>
                 <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor (Pílula)</label><input type="text" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 border border-slate-200 rounded-full text-sm font-sans font-bold"/></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código</label><div className="relative"><Hash className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" /><input type="text" value={jobId} onChange={(e) => setJobId(e.target.value)} className="w-full pl-9 p-3 border border-slate-200 rounded-full text-sm"/></div></div></div>
                 <div className={`p-4 rounded-3xl border transition-colors duration-300 ${isAffirmative ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-100'}`}><div className="flex items-center justify-between mb-2"><label className={`block text-xs font-bold uppercase flex items-center ${isAffirmative ? 'text-brand-600' : 'text-slate-500'}`}><HeartHandshake className="w-3 h-3 mr-1" /> Vaga Afirmativa?</label><div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={isAffirmative} onChange={(e) => setIsAffirmative(e.target.checked)} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out checked:translate-x-full checked:border-brand-500"/><label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200 ${isAffirmative ? 'bg-brand-500' : 'bg-slate-300'}`}></label></div></div>{isAffirmative && (<div className="animate-in fade-in slide-in-from-top-2 duration-200"><GeneratorSelect label="Público da Vaga" value={affirmativeType} options={DIVERSITY_OPTIONS} onChange={setAffirmativeType}/></div>)}</div>
                 <div className="grid grid-cols-3 gap-2"><div className="col-span-1"><GeneratorSelect label="Contrato" value={tag1} options={CONTRACT_OPTIONS} onChange={setTag1}/></div><div className="col-span-1"><GeneratorSelect label="Modalidade" value={tag2} options={MODALITY_OPTIONS} onChange={setTag2}/></div><div className="col-span-1"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Local</label><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-full text-xs"/></div></div>

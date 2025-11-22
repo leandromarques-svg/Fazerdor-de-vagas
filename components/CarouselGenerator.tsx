@@ -90,9 +90,9 @@ const getTitleFontSize = (text: string) => {
 
 const getCategoryFontSize = (text: string) => {
       const len = text.length;
-      if (len > 35) return '17px';
-      if (len > 25) return '21px';
-      return '29px';
+      if (len > 35) return '16px';
+      if (len > 25) return '20px';
+      return '28px';
 }
 
 const getDiversityTitleSize = (text: string) => { if (text.length > 20) return '72px'; return '80px'; }
@@ -103,7 +103,6 @@ interface SlideOverrides {
     location?: string;
     contract?: string;
     modality?: string;
-    tagline?: string;
     isAffirmative?: boolean;
     affirmativeType?: string;
 }
@@ -180,7 +179,7 @@ const Slide: React.FC<SlideProps> = ({ config, assets, scale = 1, imagePosition 
     const tag2 = overrides.modality || (job.remote ? 'Remoto' : 'Presencial');
     const location = overrides.location || (job.city ? `${job.city}-${job.state}` : 'Brasil');
     const category = overrides.category || ((job.department && job.department !== 'Geral') ? toTitleCase(job.department) : 'Setor Administrativo');
-    const tagline = overrides.tagline || 'Trabalhe onde seu talento ganha espaço';
+    const tagline = 'Trabalhe onde seu talento ganha espaço';
     
     const isAffirmative = overrides.isAffirmative || false;
     const affirmativeType = overrides.affirmativeType || DIVERSITY_OPTIONS[0];
@@ -350,8 +349,7 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                     image: randomImg,
                     id: `slide-job-${job.id}`,
                     overrides: {
-                        category: job.department && job.department !== 'Geral' ? toTitleCase(job.department) : 'Setor Administrativo',
-                        tagline: 'Trabalhe onde seu talento ganha espaço'
+                        category: job.department && job.department !== 'Geral' ? toTitleCase(job.department) : 'Setor Administrativo'
                     }
                 });
             });
@@ -641,15 +639,12 @@ export const CarouselGenerator: React.FC<CarouselGeneratorProps> = ({ selectedJo
                                 </div>
                             </div>
 
-                            {/* Tagline */}
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Frase de Efeito</label>
-                                <input 
-                                    type="text" 
-                                    value={activeOverrides.tagline || 'Trabalhe onde seu talento ganha espaço'} 
-                                    onChange={(e) => handleOverrideChange('tagline', e.target.value)} 
-                                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-brand-500 bg-slate-50"
-                                />
+                            {/* Tagline (Read-only visual indicator, since it's fixed) */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm opacity-60">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Frase de Efeito (Fixo)</label>
+                                <div className="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium bg-slate-50 text-slate-600">
+                                    Trabalhe onde seu talento ganha espaço
+                                </div>
                             </div>
 
                             <div className="space-y-4">
