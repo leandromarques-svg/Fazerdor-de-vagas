@@ -288,11 +288,16 @@ export default function App() {
       if (!confirm('Tem certeza que deseja excluir esta imagem permanentemente?')) return;
       if (isSupabaseConfigured && supabase) {
         try {
-            const { error: dbError } = await supabase.from('library_images').delete().eq('id', id);
+            // Tenta converter ID para numero para o banco
+            const idToDelete = /^\d+$/.test(id) ? parseInt(id) : id;
+
+            const { error: dbError } = await supabase.from('library_images').delete().eq('id', idToDelete);
             if (dbError) throw dbError;
+            
             const fileName = url.substring(url.lastIndexOf('/') + 1);
             const decodedFileName = decodeURIComponent(fileName);
             if (decodedFileName) await supabase.storage.from('images').remove([decodedFileName]);
+            
             setCustomImages(prev => prev.filter(img => img.id !== id));
         } catch (err: any) { alert("Erro ao deletar: " + err.message); }
       } else {
@@ -307,17 +312,23 @@ export default function App() {
     setIsSavingTags(true);
     try {
         if (isSupabaseConfigured && supabase) {
+            // Verifica se o ID é numérico (comum no SQL) ou UUID/String e converte se necessário
+            const idToUpdate = /^\d+$/.test(editingImage.id) ? parseInt(editingImage.id) : editingImage.id;
+
             // Verifica se a atualização retornou dados (confirmação de sucesso no banco)
             const { data, error } = await supabase
                 .from('library_images')
                 .update({ tags: editingTags })
-                .eq('id', editingImage.id)
+                .eq('id', idToUpdate)
                 .select();
             
             if (error) throw error;
             
+            // Se data for vazio, significa que o filtro .eq não encontrou nada (ID errado)
+            // OU o RLS bloqueou a operação de UPDATE
             if (!data || data.length === 0) {
-                 throw new Error("A atualização não foi salva no banco de dados. Verifique suas conexões ou recarregue a página.");
+                 console.error("Update returned 0 rows. ID sent:", idToUpdate);
+                 throw new Error("A atualização foi recusada pelo banco de dados (Permissão Negada ou ID não encontrado). Execute o arquivo 'supabase_schema.sql' para corrigir permissões.");
             }
         } 
         
@@ -331,7 +342,12 @@ export default function App() {
         setEditingImage(null);
     } catch (e: any) { 
         console.error(e);
-        alert("Erro ao atualizar tags: " + (e.message || "Erro desconhecido")); 
+        const isRLSError = e.message.includes("Permissão Negada") || e.message.includes("policy");
+        
+        alert(isRLSError 
+            ? "ERRO DE PERMISSÃO:\n\nVocê precisa executar o script 'supabase_schema.sql' no painel do Supabase para permitir a EDIÇÃO de dados.\n\nAtualmente, o banco só está permitindo Inserção (Upload)."
+            : "Erro ao atualizar tags: " + (e.message || "Erro desconhecido")
+        ); 
     } finally { 
         setIsSavingTags(false); 
     }
