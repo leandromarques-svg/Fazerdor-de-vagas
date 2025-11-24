@@ -217,7 +217,7 @@ export default function App() {
             
             if (data) {
                 const formattedImages: LibraryImage[] = data.map((item: any) => ({
-                    id: item.id,
+                    id: String(item.id), // Garantir que ID seja string para consistência
                     url: item.url,
                     tags: item.tags || [],
                     isCustom: true
@@ -268,7 +268,7 @@ export default function App() {
                     const { data: insertData, error: insertError } = await supabase.from('library_images').insert([{ url: publicUrl, tags: tags, is_custom: true }]).select().single();
                     if (insertError) throw insertError;
                     if (insertData) {
-                        newEntries.push({ id: insertData.id, url: insertData.url, tags: insertData.tags, isCustom: true });
+                        newEntries.push({ id: String(insertData.id), url: insertData.url, tags: insertData.tags, isCustom: true });
                         successCount++;
                     }
                 } catch (singleErr) { console.error("Erro individual:", singleErr); }
@@ -307,14 +307,34 @@ export default function App() {
     setIsSavingTags(true);
     try {
         if (isSupabaseConfigured && supabase) {
-            const { error } = await supabase.from('library_images').update({ tags: editingTags }).eq('id', editingImage.id);
+            // Verifica se a atualização retornou dados (confirmação de sucesso no banco)
+            const { data, error } = await supabase
+                .from('library_images')
+                .update({ tags: editingTags })
+                .eq('id', editingImage.id)
+                .select();
+            
             if (error) throw error;
+            
+            if (!data || data.length === 0) {
+                 throw new Error("A atualização não foi salva no banco de dados. Verifique suas conexões ou recarregue a página.");
+            }
         } 
+        
         const updatedImages = customImages.map(img => img.id === editingImage.id ? { ...img, tags: editingTags } : img);
         setCustomImages(updatedImages);
-        if (!isSupabaseConfigured || !supabase) localStorage.setItem('metarh_custom_images', JSON.stringify(updatedImages));
+        
+        if (!isSupabaseConfigured || !supabase) {
+            localStorage.setItem('metarh_custom_images', JSON.stringify(updatedImages));
+        }
+        
         setEditingImage(null);
-    } catch (e: any) { alert("Erro ao atualizar tags: " + e.message); } finally { setIsSavingTags(false); }
+    } catch (e: any) { 
+        console.error(e);
+        alert("Erro ao atualizar tags: " + (e.message || "Erro desconhecido")); 
+    } finally { 
+        setIsSavingTags(false); 
+    }
   };
 
   const handleOpenEditTags = (img: LibraryImage) => { setEditingImage(img); setEditingTags(img.tags); };
@@ -350,12 +370,7 @@ export default function App() {
             await new Promise(resolve => setTimeout(resolve, 10)); 
             
             // CRITICAL FIX FOR LONG FILENAMES:
-            // We create a new File object with a safe, short name.
-            // This prevents the browser/OS FileReader from choking on excessively long paths/names
-            // that might have been dragged in.
             const safeName = `upload-temp-${Date.now()}.jpg`;
-            
-            // Note: We slice the blob to ensure we are just passing the data reference
             const safeFile = new File([file.slice(0, file.size, file.type)], safeName, { type: file.type || 'image/jpeg' });
 
             const base64 = await compressImage(safeFile);
