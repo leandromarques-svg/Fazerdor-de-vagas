@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api-selecty': {
+            target: 'https://api.selecty.app/v2',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api-selecty/, ''),
+          },
+        },
       },
       plugins: [react()],
       define: {
