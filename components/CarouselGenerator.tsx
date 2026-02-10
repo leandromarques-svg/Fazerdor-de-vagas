@@ -58,26 +58,42 @@ const MODALITY_OPTIONS = ['Presencial', 'Híbrido', 'Remoto'];
 const DIVERSITY_OPTIONS = ['Mulheres', 'Pessoas Negras', 'Pessoas com Deficiência', 'LGBTQIAPN+', '50+', 'Pessoas Indígenas', 'Jovem', 'Amarelos', 'Afirmativa (Geral)'];
 
 const useBase64Image = (url: string | null) => {
-  const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    if (!url) { setDataSrc(undefined); return; }
-    if (url.startsWith('data:')) { setDataSrc(url); return; }
-    let isMounted = true;
-    const loadImage = async () => {
-      try {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error('Network response');
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => { if (isMounted) setDataSrc(reader.result as string); };
-        reader.readAsDataURL(blob);
-      } catch (error) { if (isMounted) setDataSrc(url); }
-    };
-    loadImage();
-    return () => { isMounted = false; };
-  }, [url]);
-  return dataSrc;
+    const [dataSrc, setDataSrc] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        if (!url) { setDataSrc(undefined); return; }
+        if (url.startsWith('data:')) { setDataSrc(url); return; }
+        let isMounted = true;
+        const loadImage = async () => {
+            const proxies = [
+                (u: string) => `/api/image?url=${encodeURIComponent(u)}`,
+                (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                (u: string) => `https://thingproxy.freeboard.io/fetch/${u}`,
+                (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+            ];
+            for (const build of proxies) {
+                try {
+                    const proxyUrl = build(url);
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    await new Promise<void>((resolve, reject) => {
+                        reader.onloadend = () => { if (isMounted) setDataSrc(reader.result as string); resolve(); };
+                        reader.onerror = () => reject(new Error('Failed to read blob'));
+                        reader.readAsDataURL(blob);
+                    });
+                    return;
+                } catch (err) {
+                    console.warn('Proxy failed, trying next:', err);
+                    continue;
+                }
+            }
+            if (isMounted) setDataSrc(url);
+        };
+        loadImage();
+        return () => { isMounted = false; };
+    }, [url]);
+    return dataSrc;
 };
 
 const getTitleFontSize = (text: string) => {
