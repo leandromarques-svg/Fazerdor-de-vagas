@@ -278,17 +278,33 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
   const handleNextCaption = () => generateCaption(currentCaptionIndex + 1);
   const handleCopyCaption = () => { navigator.clipboard.writeText(captionText); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
-  const generateBlob = async () => {
-    if (cardRef.current === null) return null;
-    return await toBlob(cardRef.current, { 
-        cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
-    });
-  };
+    const generateBlob = async () => {
+        if (cardRef.current === null) return null;
+        try {
+            const b = await toBlob(cardRef.current, { 
+                cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
+            });
+            if (b) return b;
+        } catch (err) {
+            console.warn('toBlob failed, will try fallback to dataURL:', err);
+        }
 
-  const handleDownload = async () => {
-    if (cardRef.current === null) return;
-    setIsGenerating(true);
-    try {
+        // Fallback: try toPng then convert dataURL to blob
+        try {
+            const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' } });
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            return blob;
+        } catch (err) {
+            console.error('Both toBlob and toPng->blob fallbacks failed:', err);
+            return null;
+        }
+    };
+
+    const handleDownload = async () => {
+        if (cardRef.current === null) return;
+        setIsGenerating(true);
+        try {
             await new Promise(resolve => setTimeout(resolve, 500));
             // Prefer generating a Blob (smaller memory, avoids dataURL size limits)
             let blob = await generateBlob();
@@ -303,18 +319,25 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                 setTimeout(() => URL.revokeObjectURL(url), 30000);
             } else {
                 // Fallback to dataURL if Blob generation failed
-                const dataUrl = await toPng(cardRef.current, { 
-                    cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
-                });
-                const link = document.createElement('a');
-                link.download = `${jobId}-vaga-metarh.png`;
-                link.href = dataUrl;
-                link.click();
+                try {
+                    const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' } });
+                    const link = document.createElement('a');
+                    link.download = `${jobId}-vaga-metarh.png`;
+                    link.href = dataUrl;
+                    link.click();
+                } catch (err2) {
+                    console.error('Fallback to dataURL failed:', err2);
+                    throw err2;
+                }
             }
-      if (onSuccess) onSuccess();
-    } catch (err) { console.error('Erro ao gerar imagem:', err); alert('Erro ao gerar imagem. Tente novamente.'); } 
-    finally { setIsGenerating(false); }
-  };
+            if (onSuccess) onSuccess();
+        } catch (err: any) {
+            console.error('Erro ao gerar imagem:', err);
+            const msg = err?.message || String(err);
+            alert(`Erro ao gerar imagem: ${msg}\nVeja o console para mais detalhes.`);
+        } 
+        finally { setIsGenerating(false); }
+    };
 
   const handleShare = async () => {
     if (cardRef.current === null) return;
@@ -342,7 +365,8 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     } catch (err: any) {
         if (err.name !== 'AbortError') {
             console.error('Erro ao compartilhar:', err);
-            alert('Erro ao tentar compartilhar. Tente baixar a imagem.');
+            const msg = err?.message || String(err);
+            alert(`Erro ao tentar compartilhar: ${msg}\nTente baixar a imagem.`);
         }
     } finally {
         setIsSharing(false);
