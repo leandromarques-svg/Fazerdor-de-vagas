@@ -114,17 +114,33 @@ const useBase64Image = (url: string | null) => {
     if (!url) { setDataSrc(undefined); return; }
     if (url.startsWith('data:')) { setDataSrc(url); return; }
     let isMounted = true;
-    const loadImage = async () => {
-      try {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => { if (isMounted) setDataSrc(reader.result as string); };
-        reader.readAsDataURL(blob);
-      } catch (error) { if (isMounted) setDataSrc(url); }
-    };
+        const loadImage = async () => {
+            const proxies = [
+                (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                (u: string) => `https://thingproxy.freeboard.io/fetch/${u}`,
+                (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+            ];
+            for (const build of proxies) {
+                try {
+                    const proxyUrl = build(url);
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    await new Promise<void>((resolve, reject) => {
+                        reader.onloadend = () => { if (isMounted) { setDataSrc(reader.result as string); } resolve(); };
+                        reader.onerror = () => reject(new Error('Failed to read blob'));
+                        reader.readAsDataURL(blob);
+                    });
+                    return;
+                } catch (err) {
+                    console.warn('Proxy failed, trying next:', err);
+                    continue;
+                }
+            }
+            // Fallback: use original URL (may cause CORS/taint issues)
+            if (isMounted) { setDataSrc(url); }
+        };
     loadImage();
     return () => { isMounted = false; };
   }, [url]);
@@ -273,14 +289,28 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
     if (cardRef.current === null) return;
     setIsGenerating(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const dataUrl = await toPng(cardRef.current, { 
-        cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
-      });
-      const link = document.createElement('a');
-      link.download = `${jobId}-vaga-metarh.png`;
-      link.href = dataUrl;
-      link.click();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Prefer generating a Blob (smaller memory, avoids dataURL size limits)
+            let blob = await generateBlob();
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `${jobId}-vaga-metarh.png`;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+            } else {
+                // Fallback to dataURL if Blob generation failed
+                const dataUrl = await toPng(cardRef.current, { 
+                    cacheBust: true, pixelRatio: 2, width: 1080, height: 1350, skipAutoScale: true, style: { transform: 'none', boxShadow: 'none' }
+                });
+                const link = document.createElement('a');
+                link.download = `${jobId}-vaga-metarh.png`;
+                link.href = dataUrl;
+                link.click();
+            }
       if (onSuccess) onSuccess();
     } catch (err) { console.error('Erro ao gerar imagem:', err); alert('Erro ao gerar imagem. Tente novamente.'); } 
     finally { setIsGenerating(false); }
@@ -402,7 +432,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                     <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
                          {filteredImages.map((img) => (
                              <div key={img.id} onClick={() => setJobImage(img.url)} className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 relative group ${jobImage === img.url ? 'border-brand-500 ring-2 ring-brand-200' : 'border-transparent hover:border-slate-300'}`}>
-                                 <img src={img.url} className="w-full h-full object-cover" loading="lazy" />
+                                 <img src={img.url} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
                                  {jobImage === img.url && (<div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center z-10"><CheckCircle className="w-6 h-6 text-white drop-shadow-md" /></div>)}
                              </div>
                          ))}
@@ -455,7 +485,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                         <div className="relative w-full h-full flex flex-col bg-white">
                             {/* 1. Header (Purple) */}
                             <div className="absolute top-0 left-0 w-full z-10" style={{ backgroundColor: COLORS.affirmativePurple, height: `${HEADER_HEIGHT}px`, borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
-                                <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" />}</div>
+                                <div className="absolute flex items-center justify-center" style={{ right: `${FLOATING_CARD_RIGHT}px`, width: `${FLOATING_CARD_WIDTH}px`, top: `${LOGO_TOP}px`, height: `${LOGO_HEIGHT}px` }}>{logoBase64 && <img src={logoBase64} className="h-full w-auto object-contain opacity-90" crossOrigin="anonymous" />}</div>
                                 <div className="absolute bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-6" style={{ width: `${FLOATING_CARD_WIDTH}px`, height: `${FLOATING_CARD_HEIGHT}px`, right: `${FLOATING_CARD_RIGHT}px`, top: `${FLOATING_CARD_TOP}px` }}>
                                     <h2 className="font-sans font-semibold text-[32px] uppercase leading-tight mb-6 text-center">
                                         <span style={{ color: COLORS.affirmativeText2 }}>{tagline}</span>
@@ -476,6 +506,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                     src={jobImageBase64} 
                                     className="w-full h-full object-cover pointer-events-none select-none" 
                                     style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }} 
+                                    crossOrigin="anonymous"
                                 />}
                                 <div className="absolute bottom-[20px] left-0 w-full flex justify-center z-30"><div className="bg-white px-5 py-1 rounded-full shadow-md"><span className="font-sans font-bold text-[24px] text-black">Cód.: {jobId}</span></div></div>
                             </div>
@@ -498,7 +529,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                     ) : (
                         /* ================= STANDARD LAYOUT ================= */
                         <>
-                            {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />)}
+                            {bgImageBase64 && (<img src={bgImageBase64} alt="Background" className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" crossOrigin="anonymous" />)}
                             <div className="relative w-full z-10 bg-white" style={{ height: '42%', borderBottomLeftRadius: '80px', borderBottomRightRadius: '80px' }}>
                                 {/* Container Principal do Header com Layout Corrigido */}
                                 <div className="absolute inset-0 w-full h-full">
@@ -533,6 +564,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                                 alt="Foto da Vaga" 
                                                 className="w-full h-full object-cover block pointer-events-none select-none" 
                                                 style={{ objectPosition: `${imagePosition.x}% ${imagePosition.y}%` }}
+                                                crossOrigin="anonymous"
                                             />}
                                         </div>
                                     </div>
@@ -543,7 +575,7 @@ export const JobImageGenerator: React.FC<JobImageGeneratorProps> = ({ job, onClo
                                     <h1 className="font-sans font-extrabold text-white text-center leading-tight mb-12 drop-shadow-lg w-full" style={{ fontSize: getTitleFontSize(title) }}>{title}</h1>
                                     <div className="flex flex-wrap justify-center gap-5 w-full">{tag1 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase text-[#F42C9F]">{tag1}</span></div>)}{tag2 && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px]"><span className="font-sans font-extrabold text-[24px] uppercase" style={{ color: COLORS.purple }}>{tag2}</span></div>)}{location && (<div className="bg-white px-6 py-2 rounded-full shadow-md flex items-center justify-center min-w-[160px] max-w-[400px]"><span className="font-sans font-extrabold text-[24px] uppercase truncate" style={{ color: COLORS.purple }}>{location}</span></div>)}</div>
                                 </div>
-                                <div className="absolute bottom-0 w-full px-[135px] pb-[145px]"><div className="w-full h-[1px] bg-white opacity-30 mb-10"></div><div className="flex items-center justify-between w-full"><div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">{logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" />}</div><div className="flex flex-col items-end text-right relative mr-12"><span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">Candidate-se gratuitamente em</span><span className="text-white font-sans font-bold text-[27px]">{footerUrl}</span><div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg"><svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div></div>
+                                <div className="absolute bottom-0 w-full px-[135px] pb-[145px]"><div className="w-full h-[1px] bg-white opacity-30 mb-10"></div><div className="flex items-center justify-between w-full"><div className="h-[100px] w-[100px] flex items-center justify-start flex-shrink-0">{logoBase64 && <img src={logoBase64} alt="MetaRH" className="w-full h-full object-contain" crossOrigin="anonymous" />}</div><div className="flex flex-col items-end text-right relative mr-12"><span className="text-white font-sans font-medium text-[24px] opacity-90 mb-1">Candidate-se gratuitamente em</span><span className="text-white font-sans font-bold text-[27px]">{footerUrl}</span><div className="absolute -right-12 top-[52px] transform -rotate-12 drop-shadow-lg"><svg width="42" height="42" viewBox="0 0 24 24" fill={COLORS.green} stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg></div></div></div></div>
                             </div>
                         </>
                     )}
