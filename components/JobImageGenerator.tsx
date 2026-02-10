@@ -116,10 +116,13 @@ const useBase64Image = (url: string | null) => {
     let isMounted = true;
         const loadImage = async () => {
             const proxies = [
+                // Try local serverless proxy first (recommended)
+                (u: string) => `/api/image?url=${encodeURIComponent(u)}`,
                 (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
                 (u: string) => `https://thingproxy.freeboard.io/fetch/${u}`,
                 (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
             ];
+
             for (const build of proxies) {
                 try {
                     const proxyUrl = build(url);
@@ -138,6 +141,7 @@ const useBase64Image = (url: string | null) => {
                     continue;
                 }
             }
+
             // Fallback: use original URL (may cause CORS/taint issues)
             if (isMounted) { setDataSrc(url); }
         };
